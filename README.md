@@ -2,7 +2,7 @@
 
 A flutter plugin to setup and control VPN connections using WireGuard-compatible backends.
 
-This fork is adapted for AmneziaWG. Android targets the `com.zaneschepke:amneziawg-android` tunnel library, the example iOS/macOS tunnel extensions are wired for the `awg-apple` package, and Windows uses `amneziawg-windows` `tunnel.dll` artifacts.
+This fork is adapted for AmneziaWG. Android targets the `com.zaneschepke:amneziawg-android` tunnel library, the example iOS/macOS tunnel extensions are wired for the `amneziawg-apple` package, and Windows uses `amneziawg-windows` `tunnel.dll` artifacts.
 
 - [Usage](#usage)
   - [Initialize](#initialize)

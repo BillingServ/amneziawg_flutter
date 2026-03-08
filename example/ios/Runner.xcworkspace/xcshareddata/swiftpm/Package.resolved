@@ -1,9 +1,9 @@
 {
   "pins" : [
     {
-      "identity" : "wireguard-apple",
+      "identity" : "amneziawg-apple",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/passepartoutvpn/wireguard-apple",
+      "location" : "https://github.com/amnezia-vpn/amneziawg-apple",
       "state" : {
         "revision" : "73d9152fa0cb661db0348a1ac11dbbf998422a50",
         "version" : "1.0.17"

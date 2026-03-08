@@ -197,7 +197,7 @@
 			buildPhases = (
 			);
 			buildToolPath = /usr/bin/make;
-			buildWorkingDirectory = "$(BUILD_DIR)/../../../SourcePackages/checkouts/awg-apple/Sources/WireGuardKitGo";
+			buildWorkingDirectory = "$(BUILD_DIR)/../../../SourcePackages/checkouts/amneziawg-apple/Sources/WireGuardKitGo";
 			dependencies = (
 			);
 			name = tun;
@@ -288,7 +288,7 @@
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
-				A261D91A2B2FF779008AD726 /* XCRemoteSwiftPackageReference "awg-apple" */,
+				A261D91A2B2FF779008AD726 /* XCRemoteSwiftPackageReference "amneziawg-apple" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -917,9 +917,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A261D91A2B2FF779008AD726 /* XCRemoteSwiftPackageReference "awg-apple" */ = {
+		A261D91A2B2FF779008AD726 /* XCRemoteSwiftPackageReference "amneziawg-apple" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/amnezia-vpn/awg-apple";
+			repositoryURL = "https://github.com/amnezia-vpn/amneziawg-apple";
 			requirement = {
 				branch = master;
 				kind = branch;
@@ -930,12 +930,12 @@
 /* Begin XCSwiftPackageProductDependency section */
 		A261D91B2B2FF779008AD726 /* WireGuardKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A261D91A2B2FF779008AD726 /* XCRemoteSwiftPackageReference "awg-apple" */;
+			package = A261D91A2B2FF779008AD726 /* XCRemoteSwiftPackageReference "amneziawg-apple" */;
 			productName = WireGuardKit;
 		};
 		A261D9C92B3002E3008AD726 /* WireGuardKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A261D91A2B2FF779008AD726 /* XCRemoteSwiftPackageReference "awg-apple" */;
+			package = A261D91A2B2FF779008AD726 /* XCRemoteSwiftPackageReference "amneziawg-apple" */;
 			productName = WireGuardKit;
 		};
 /* End XCSwiftPackageProductDependency section */
