@@ -10,7 +10,7 @@ import Cocoa
 
 import NetworkExtension
 
-public class WireguardFlutterPlugin: NSObject, FlutterPlugin {
+public class AmneziaFlutterPlugin: NSObject, FlutterPlugin {
     private static var utils : VPNUtils! = VPNUtils()
      
     public static var stage: FlutterEventSink?
@@ -19,7 +19,7 @@ public class WireguardFlutterPlugin: NSObject, FlutterPlugin {
     
     public static func register(with registrar: FlutterPluginRegistrar) {
        
-        let instance = WireguardFlutterPlugin()
+        let instance = AmneziaFlutterPlugin()
         instance.onRegister(registrar)
     }
     
@@ -29,14 +29,14 @@ public class WireguardFlutterPlugin: NSObject, FlutterPlugin {
         #else
         let messenger = registrar.messenger
         #endif
-        let wireguardMethodChannel = FlutterMethodChannel(name: "billion.group.wireguard_flutter/wgcontrol", binaryMessenger: messenger)
+        let wireguardMethodChannel = FlutterMethodChannel(name: "billion.group.amnezia_flutter/wgcontrol", binaryMessenger: messenger)
         let vpnStageE = FlutterEventChannel(
-      name: "billion.group.wireguard_flutter/wgstage", binaryMessenger: messenger)
+      name: "billion.group.amnezia_flutter/wgstage", binaryMessenger: messenger)
         vpnStageE.setStreamHandler(VPNConnectionHandler())
         wireguardMethodChannel.setMethodCallHandler({(call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
             switch call.method {
             case "stage":
-               result(WireguardFlutterPlugin.utils.currentStatus())
+               result(AmneziaFlutterPlugin.utils.currentStatus())
                 break;
             case "initialize":
               let localizedDescription: String? =
@@ -47,10 +47,10 @@ public class WireguardFlutterPlugin: NSObject, FlutterPlugin {
                         code: "-3", message: "localizedDescription content empty or null", details: nil))
                   return
               }
-              WireguardFlutterPlugin.utils.localizedDescription = localizedDescription
-              WireguardFlutterPlugin.utils.loadProviderManager { (err: Error?) in
+              AmneziaFlutterPlugin.utils.localizedDescription = localizedDescription
+              AmneziaFlutterPlugin.utils.loadProviderManager { (err: Error?) in
                   if err == nil {
-                      result(WireguardFlutterPlugin.utils.currentStatus())
+                      result(AmneziaFlutterPlugin.utils.currentStatus())
                   } else {
                       result(
                         FlutterError(
@@ -76,12 +76,12 @@ public class WireguardFlutterPlugin: NSObject, FlutterPlugin {
         })
     }
     private func connect(serverAddress: String, wgQuickConfig: String, providerBundleIdentifier:String, result: @escaping FlutterResult) {
-        WireguardFlutterPlugin.utils.configureVPN(serverAddress: serverAddress, wgQuickConfig: wgQuickConfig, providerBundleIdentifier: providerBundleIdentifier) { success in
+        AmneziaFlutterPlugin.utils.configureVPN(serverAddress: serverAddress, wgQuickConfig: wgQuickConfig, providerBundleIdentifier: providerBundleIdentifier) { success in
                 result(success)
             }
         }
         private func disconnect(result: @escaping FlutterResult) {
-            WireguardFlutterPlugin.utils.stopVPN(){ succes in
+            AmneziaFlutterPlugin.utils.stopVPN(){ succes in
                 result(succes)
             }
         }
@@ -110,7 +110,7 @@ public class WireguardFlutterPlugin: NSObject, FlutterPlugin {
         let status = nevpnconn.status
 
         // Send the event using the eventSink closure
-        connection(WireguardFlutterPlugin.utils.onVpnStatusChangedString(notification: status))
+        connection(AmneziaFlutterPlugin.utils.onVpnStatusChangedString(notification: status))
       }
 
       // Assign the eventSink closure to the vpnConnection variable
@@ -118,7 +118,7 @@ public class WireguardFlutterPlugin: NSObject, FlutterPlugin {
 
       NETunnelProviderManager.loadAllFromPreferences { managers, error in
         events(
-            WireguardFlutterPlugin.utils.onVpnStatusChangedString(
+            AmneziaFlutterPlugin.utils.onVpnStatusChangedString(
             notification: managers?.first?.connection.status))
       }
 

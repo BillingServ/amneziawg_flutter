@@ -5,9 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:process_run/shell.dart';
 
-import '../wireguard_flutter_platform_interface.dart';
+import '../amnezia_flutter_platform_interface.dart';
 
-class WireGuardFlutterLinux extends WireGuardFlutterInterface {
+class AmneziaFlutterLinux extends AmneziaFlutterPlatformInterface {
   String? name;
   File? configFile;
 

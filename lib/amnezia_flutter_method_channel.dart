@@ -1,13 +1,13 @@
 import 'package:flutter/services.dart';
 
-import 'wireguard_flutter_platform_interface.dart';
+import 'amnezia_flutter_platform_interface.dart';
 
-class WireGuardFlutterMethodChannel extends WireGuardFlutterInterface {
+class AmneziaFlutterMethodChannel extends AmneziaFlutterPlatformInterface {
   static const _methodChannelVpnControl =
-      "billion.group.wireguard_flutter/wgcontrol";
+      "billion.group.amnezia_flutter/wgcontrol";
   static const _methodChannel = MethodChannel(_methodChannelVpnControl);
   static const _eventChannelVpnStage =
-      'billion.group.wireguard_flutter/wgstage';
+      'billion.group.amnezia_flutter/wgstage';
   static const _eventChannel = EventChannel(_eventChannelVpnStage);
 
   @override

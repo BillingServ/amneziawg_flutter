@@ -1,4 +1,4 @@
-group 'billion.group.wireguard_flutter'
+group 'billion.group.amnezia_flutter'
 version '1.0-SNAPSHOT'
 
 buildscript {
@@ -45,7 +45,7 @@ android {
         minSdkVersion 21
     }
 
-    namespace 'billion.group.wireguard_flutter'
+    namespace 'billion.group.amnezia_flutter'
 }
 
 dependencies {

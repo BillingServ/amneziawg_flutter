@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:wireguard_flutter/wireguard_flutter.dart';
+import 'package:amnezia_flutter/amnezia_flutter.dart';
 
 void main() {
   runApp(
@@ -24,7 +24,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final wireguard = WireGuardFlutter.instance;
+  final wireguard = AmneziaFlutter.instance;
 
   late String name;
 

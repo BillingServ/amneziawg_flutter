@@ -1,4 +1,4 @@
-abstract class WireGuardFlutterInterface {
+abstract class AmneziaFlutterPlatformInterface {
   Stream<VpnStage> get vpnStageSnapshot;
 
   Future<void> initialize({required String interfaceName});

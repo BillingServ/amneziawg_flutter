@@ -11,17 +11,17 @@ cmake_minimum_required(VERSION 3.14)
 # endforeach()
 
 # Project-level configuration.
-set(PROJECT_NAME "wireguard_flutter")
+set(PROJECT_NAME "amnezia_flutter")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
 # This value is used when generating builds using this plugin, so it must
 # not be changed
-set(PLUGIN_NAME "wireguard_flutter_plugin")
+set(PLUGIN_NAME "amnezia_flutter_plugin")
 
 # Any new source files that you add to the plugin should be added here.
 list(APPEND PLUGIN_SOURCES
-  "wireguard_flutter_plugin.cpp"
-  "wireguard_flutter_plugin.h"
+  "amnezia_flutter_plugin.cpp"
+  "amnezia_flutter_plugin.h"
   "wireguard_tunnel_manager.cpp"
   "wireguard_tunnel_manager.h"
   "utils.cpp"
@@ -31,8 +31,8 @@ list(APPEND PLUGIN_SOURCES
 # Define the plugin library target. Its name must not be changed (see comment
 # on PLUGIN_NAME above).
 add_library(${PLUGIN_NAME} SHARED
-  "include/wireguard_flutter/wireguard_flutter_plugin_c_api.h"
-  "wireguard_flutter_plugin_c_api.cpp"
+  "include/amnezia_flutter/amnezia_flutter_plugin_c_api.h"
+  "amnezia_flutter_plugin_c_api.cpp"
   ${PLUGIN_SOURCES}
 )
 
@@ -68,7 +68,7 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin iphl
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an
 # external build triggered from this build file.
-set(wireguard_flutter_bundled_libraries
+set(amnezia_flutter_bundled_libraries
   "${CMAKE_CURRENT_SOURCE_DIR}/${TUNNEL_ARCH_DIR}/tunnel.dll"
   PARENT_SCOPE
 )

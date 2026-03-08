@@ -1,4 +1,4 @@
-package billion.group.wireguard_flutter_example
+package billion.group.amnezia_flutter_example
 
 import io.flutter.embedding.android.FlutterActivity
 

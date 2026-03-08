@@ -1,5 +1,5 @@
-name: wireguard_flutter_example
-description: Demonstrates how to use the wireguard_flutter plugin.
+name: amnezia_flutter_example
+description: Demonstrates how to use the amnezia_flutter plugin.
 
 environment:
   sdk: '^3.0.0'
@@ -13,7 +13,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter 
-  wireguard_flutter:
+  amnezia_flutter:
     path: ../
   cupertino_icons: ^1.0.5
   http: ^1.1.0

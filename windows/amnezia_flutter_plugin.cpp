@@ -1,4 +1,4 @@
-#include "wireguard_flutter_plugin.h"
+#include "amnezia_flutter_plugin.h"
 
 // This must be included before many other Windows headers.
 #include <flutter/method_channel.h>
@@ -20,18 +20,18 @@
 using namespace flutter;
 using namespace std;
 
-namespace wireguard_flutter
+namespace amnezia_flutter
 {
 
   // static
-  void WireguardFlutterPlugin::RegisterWithRegistrar(PluginRegistrarWindows *registrar)
+  void AmneziaFlutterPlugin::RegisterWithRegistrar(PluginRegistrarWindows *registrar)
   {
     auto channel = make_unique<MethodChannel<EncodableValue>>(
-        registrar->messenger(), "billion.group.wireguard_flutter/wgcontrol", &StandardMethodCodec::GetInstance());
+        registrar->messenger(), "billion.group.amnezia_flutter/wgcontrol", &StandardMethodCodec::GetInstance());
     auto eventChannel = make_unique<EventChannel<EncodableValue>>(
-        registrar->messenger(), "billion.group.wireguard_flutter/wgstage", &StandardMethodCodec::GetInstance());
+        registrar->messenger(), "billion.group.amnezia_flutter/wgstage", &StandardMethodCodec::GetInstance());
 
-    auto plugin = make_unique<WireguardFlutterPlugin>();
+    auto plugin = make_unique<AmneziaFlutterPlugin>();
 
     channel->SetMethodCallHandler([plugin_pointer = plugin.get()](const auto &call, auto result)
                                   { plugin_pointer->HandleMethodCall(call, move(result)); });
@@ -55,15 +55,15 @@ namespace wireguard_flutter
     registrar->AddPlugin(move(plugin));
   }
 
-  WireguardFlutterPlugin::WireguardFlutterPlugin() {
+  AmneziaFlutterPlugin::AmneziaFlutterPlugin() {
     // Create tunnel manager
     tunnel_manager_ = make_unique<WireGuardTunnelManager>();
-    cout << "WireguardFlutterPlugin: Created with embedded tunnel manager" << endl;
+    cout << "AmneziaFlutterPlugin: Created with embedded tunnel manager" << endl;
   }
 
-  WireguardFlutterPlugin::~WireguardFlutterPlugin() {}
+  AmneziaFlutterPlugin::~AmneziaFlutterPlugin() {}
 
-  void WireguardFlutterPlugin::HandleMethodCall(const MethodCall<EncodableValue> &call,
+  void AmneziaFlutterPlugin::HandleMethodCall(const MethodCall<EncodableValue> &call,
                                                 unique_ptr<MethodResult<EncodableValue>> result)
   {
     const auto *args = get_if<EncodableMap>(call.arguments());
@@ -72,7 +72,7 @@ namespace wireguard_flutter
     {
       // For the embedded approach, we don't need win32ServiceName
       // Just acknowledge initialization
-      cout << "WireguardFlutterPlugin: Initialize called (embedded mode)" << endl;
+      cout << "AmneziaFlutterPlugin: Initialize called (embedded mode)" << endl;
       
       if (tunnel_manager_ && events_) {
         tunnel_manager_->setEventSink(events_.get());
@@ -96,7 +96,7 @@ namespace wireguard_flutter
         return;
       }
 
-      cout << "WireguardFlutterPlugin: Starting tunnel with embedded approach" << endl;
+      cout << "AmneziaFlutterPlugin: Starting tunnel with embedded approach" << endl;
       
       try
       {
@@ -121,7 +121,7 @@ namespace wireguard_flutter
         return;
       }
 
-      cout << "WireguardFlutterPlugin: Stopping tunnel" << endl;
+      cout << "AmneziaFlutterPlugin: Stopping tunnel" << endl;
       
       try
       {
@@ -176,7 +176,7 @@ namespace wireguard_flutter
     result->NotImplemented();
   }
 
-  unique_ptr<StreamHandlerError<EncodableValue>> WireguardFlutterPlugin::OnListen(
+  unique_ptr<StreamHandlerError<EncodableValue>> AmneziaFlutterPlugin::OnListen(
       const EncodableValue *arguments,
       unique_ptr<EventSink<EncodableValue>> &&events)
   {
@@ -188,7 +188,7 @@ namespace wireguard_flutter
     return nullptr;
   }
 
-  unique_ptr<StreamHandlerError<EncodableValue>> WireguardFlutterPlugin::OnCancel(
+  unique_ptr<StreamHandlerError<EncodableValue>> AmneziaFlutterPlugin::OnCancel(
       const EncodableValue *arguments)
   {
     events_ = nullptr;
@@ -199,4 +199,4 @@ namespace wireguard_flutter
     return nullptr;
   }
 
-} // namespace wireguard_flutter
+} // namespace amnezia_flutter

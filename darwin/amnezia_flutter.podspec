@@ -1,13 +1,13 @@
 #
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
-# Run `pod lib lint wireguard_flutter.podspec` to validate before publishing.
+# Run `pod lib lint amnezia_flutter.podspec` to validate before publishing.
 #
 Pod::Spec.new do |s|
-  s.name = "wireguard_flutter"
+  s.name = "amnezia_flutter"
   s.version = "0.0.1"
-  s.summary = "Wireguard (darwin)"
+  s.summary = "Amnezia Flutter (darwin)"
   s.description = <<-DESC
-Wireguard flutter SDK for iOS/macOS
+Amnezia Flutter SDK for iOS/macOS
                        DESC
   s.homepage = "https://flutterflux.com"
   s.license = { :file => "../LICENSE" }

@@ -1,6 +1,6 @@
-# Contributing to wireguard_flutter
+# Contributing to amnezia_flutter
 
-Thank you for your interest in contributing to wireguard_flutter! We appreciate your help in making this project better.
+Thank you for your interest in contributing to amnezia_flutter! We appreciate your help in making this project better.
 
 Before you start contributing, please take a moment to read the following guidelines.
 
@@ -41,6 +41,6 @@ If you have a feature request, please open a new issue with a clear description 
 
 ## Licensing
 
-By contributing to this project, you agree that your contributions will be licensed under the [LICENSE NAME](https://github.com/Caqil/wireguard_flutter/blob/main/LICENSE) license used for the project.
+By contributing to this project, you agree that your contributions will be licensed under the [LICENSE NAME](https://github.com/Caqil/amnezia_flutter/blob/main/LICENSE) license used for the project.
 
 Thank you for your contribution!

@@ -1,4 +1,4 @@
-# wireguard_flutter
+# amnezia_flutter
 
 A flutter plugin to setup and control VPN connections using WireGuard-compatible backends.
 
@@ -12,9 +12,9 @@ This fork is adapted for AmneziaWG. Android targets the `com.zaneschepke:amnezia
 - [Supported Platforms](#supported-platforms)
 - [FAQ & Troubleshooting](#faq--troubleshooting)
 
-# Contributing to wireguard_flutter
+# Contributing to amnezia_flutter
 
-Thank you for your interest in contributing to wireguard_flutter! We appreciate your help in making this project better.
+Thank you for your interest in contributing to amnezia_flutter! We appreciate your help in making this project better.
 
 Before you start contributing, please take a moment to read the following guidelines.
 
@@ -40,10 +40,10 @@ Before you start contributing, please take a moment to read the following guidel
 
 ## Usage
 
-To use this plugin, add `wireguard_flutter` or visit [Flutter Tutorial](https://flutterflux.com/).
+To use this plugin, add `amnezia_flutter` or visit [Flutter Tutorial](https://flutterflux.com/).
 
 ```
-flutter pub add wireguard_flutter
+flutter pub add amnezia_flutter
 ```
 
 ### Initialize
@@ -51,7 +51,7 @@ flutter pub add wireguard_flutter
 Initialize a wireguard instance with a valid name using `initialize`:
 
 ```dart
-final wireguard = WireGuardFlutter.instance;
+final wireguard = AmneziaFlutter.instance;
 
 // initialize the interface
 await wireguard.initialize(interfaceName: 'wg0');

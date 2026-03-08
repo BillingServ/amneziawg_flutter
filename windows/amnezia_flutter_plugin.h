@@ -1,5 +1,5 @@
-#ifndef FLUTTER_PLUGIN_WIREGUARD_FLUTTER_PLUGIN_H_
-#define FLUTTER_PLUGIN_WIREGUARD_FLUTTER_PLUGIN_H_
+#ifndef FLUTTER_PLUGIN_AMNEZIA_FLUTTER_PLUGIN_H_
+#define FLUTTER_PLUGIN_AMNEZIA_FLUTTER_PLUGIN_H_
 
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
@@ -13,21 +13,21 @@
 
 #include "wireguard_tunnel_manager.h"
 
-namespace wireguard_flutter
+namespace amnezia_flutter
 {
 
-  class WireguardFlutterPlugin : public flutter::Plugin
+  class AmneziaFlutterPlugin : public flutter::Plugin
   {
   public:
     static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
 
-    WireguardFlutterPlugin();
+    AmneziaFlutterPlugin();
 
-    virtual ~WireguardFlutterPlugin();
+    virtual ~AmneziaFlutterPlugin();
 
     // Disallow copy and assign.
-    WireguardFlutterPlugin(const WireguardFlutterPlugin &) = delete;
-    WireguardFlutterPlugin &operator=(const WireguardFlutterPlugin &) = delete;
+    AmneziaFlutterPlugin(const AmneziaFlutterPlugin &) = delete;
+    AmneziaFlutterPlugin &operator=(const AmneziaFlutterPlugin &) = delete;
 
   private:
     // Called when a method is called on this plugin's channel from Dart.
@@ -44,6 +44,6 @@ namespace wireguard_flutter
         const flutter::EncodableValue *arguments);
   };
 
-} // namespace wireguard_flutter
+} // namespace amnezia_flutter
 
-#endif // FLUTTER_PLUGIN_WIREGUARD_FLUTTER_PLUGIN_H_
+#endif // FLUTTER_PLUGIN_AMNEZIA_FLUTTER_PLUGIN_H_

@@ -1,6 +1,6 @@
-# wireguard_flutter_example
+# amnezia_flutter_example
 
-Demonstrates how to use the wireguard_flutter plugin.
+Demonstrates how to use the amnezia_flutter plugin.
 
 ## Getting Started
 

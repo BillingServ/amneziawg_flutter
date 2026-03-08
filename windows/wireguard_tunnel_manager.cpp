@@ -16,7 +16,7 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "advapi32.lib")
 
-namespace wireguard_flutter {
+namespace amnezia_flutter {
 
 WireGuardTunnelManager::WireGuardTunnelManager() {
     std::cout << "WireGuardTunnelManager: Initializing..." << std::endl;
@@ -512,4 +512,4 @@ void WireGuardTunnelManager::processPendingStatusUpdates() {
     }
 }
 
-} // namespace wireguard_flutter
+} // namespace amnezia_flutter

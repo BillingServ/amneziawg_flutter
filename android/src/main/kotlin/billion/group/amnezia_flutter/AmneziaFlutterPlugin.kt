@@ -1,4 +1,4 @@
-package billion.group.wireguard_flutter
+package billion.group.amnezia_flutter
 
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -32,13 +32,13 @@ import java.util.*
 import kotlinx.coroutines.launch
 import java.io.ByteArrayInputStream
 
-/** WireguardFlutterPlugin */
+/** AmneziaFlutterPlugin */
 
 const val PERMISSIONS_REQUEST_CODE = 10014
-const val METHOD_CHANNEL_NAME = "billion.group.wireguard_flutter/wgcontrol"
-const val METHOD_EVENT_NAME = "billion.group.wireguard_flutter/wgstage"
+const val METHOD_CHANNEL_NAME = "billion.group.amnezia_flutter/wgcontrol"
+const val METHOD_EVENT_NAME = "billion.group.amnezia_flutter/wgstage"
 
-class WireguardFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
+class AmneziaFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     PluginRegistry.ActivityResultListener {
     private lateinit var channel: MethodChannel
     private lateinit var events: EventChannel

@@ -1,8 +1,8 @@
-name: wireguard_flutter
-description: Wireguard Flutter SDK
+name: amnezia_flutter
+description: Amnezia Flutter SDK
 version: 0.1.4+1
 homepage: https://flutterflux.com
-repository: https://github.com/Caqil/wireguard_flutter
+repository: https://github.com/Caqil/amnezia_flutter
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -24,15 +24,15 @@ flutter:
   plugin:
     platforms:
       android:
-        package: billion.group.wireguard_flutter
-        pluginClass: WireguardFlutterPlugin
+        package: billion.group.amnezia_flutter
+        pluginClass: AmneziaFlutterPlugin
       ios:
-        pluginClass: WireguardFlutterPlugin
+        pluginClass: AmneziaFlutterPlugin
         sharedDarwinSource: true
       macos:
-        pluginClass: WireguardFlutterPlugin
+        pluginClass: AmneziaFlutterPlugin
         sharedDarwinSource: true
       windows:
-        pluginClass: WireguardFlutterPluginCApi
+        pluginClass: AmneziaFlutterPluginCApi
       linux:
-        dartPluginClass: WireGuardFlutter
+        dartPluginClass: AmneziaFlutter

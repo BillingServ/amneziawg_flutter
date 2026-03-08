@@ -12,7 +12,7 @@
 #include <flutter/event_channel.h>
 #include <flutter/encodable_value.h>
 
-namespace wireguard_flutter {
+namespace amnezia_flutter {
 
 class WireGuardTunnelManager {
 private:
@@ -77,4 +77,4 @@ private:
     std::map<std::string, uint64_t> getWireGuardInterfaceStatistics();
 };
 
-} // namespace wireguard_flutter
+} // namespace amnezia_flutter

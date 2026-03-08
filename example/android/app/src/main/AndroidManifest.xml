@@ -9,7 +9,7 @@
         android:protectionLevel="dangerous" />
 
     <application
-        android:label="wireguard_dart_example"
+        android:label="amnezia_flutter_example"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-namespace wireguard_flutter
+namespace amnezia_flutter
 {
 
   const flutter::EncodableValue *ValueOrNull(const flutter::EncodableMap &map, const char *key)
@@ -63,4 +63,4 @@ namespace wireguard_flutter
     MessageBox(NULL, &ws[0], L"Debug", MB_OK);
   }
 
-} // namespace wireguard_flutter
+} // namespace amnezia_flutter

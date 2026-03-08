@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-namespace wireguard_flutter {
+namespace amnezia_flutter {
 
 const flutter::EncodableValue *ValueOrNull(const flutter::EncodableMap &map, const char *key);
 
@@ -24,6 +24,6 @@ std::wstring AnsiToWide(const std::string &str);
 // Pops a message box (useful for debugging native code)
 void DebugMessageBox(const char* msg);
 
-}  // namespace wireguard_flutter
+}  // namespace amnezia_flutter
 
 #endif
