@@ -252,7 +252,7 @@
 			buildPhases = (
 			);
 			buildToolPath = /usr/bin/make;
-			buildWorkingDirectory = "/Users/cakra/Documents/app/wireguard-apple-master/Sources/WireGuardKitGo";
+			buildWorkingDirectory = "$(BUILD_DIR)/../../../SourcePackages/checkouts/awg-apple/Sources/WireGuardKitGo";
 			dependencies = (
 			);
 			name = tun;
@@ -353,7 +353,7 @@
 			);
 			mainGroup = 33CC10E42044A3C60003C045;
 			packageReferences = (
-				A241447C2B3044D200941DBE /* XCRemoteSwiftPackageReference "wireguard-apple" */,
+				A241447C2B3044D200941DBE /* XCRemoteSwiftPackageReference "awg-apple" */,
 			);
 			productRefGroup = 33CC10EE2044A3C60003C045 /* Products */;
 			projectDirPath = "";
@@ -1050,7 +1050,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		A241447C2B3044D200941DBE /* XCRemoteSwiftPackageReference "wireguard-apple" */ = {
+		A241447C2B3044D200941DBE /* XCRemoteSwiftPackageReference "awg-apple" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/amnezia-vpn/awg-apple";
 			requirement = {
@@ -1063,12 +1063,12 @@
 /* Begin XCSwiftPackageProductDependency section */
 		A241447D2B3044D200941DBE /* WireGuardKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A241447C2B3044D200941DBE /* XCRemoteSwiftPackageReference "wireguard-apple" */;
+			package = A241447C2B3044D200941DBE /* XCRemoteSwiftPackageReference "awg-apple" */;
 			productName = WireGuardKit;
 		};
 		A24144AE2B30495D00941DBE /* WireGuardKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A241447C2B3044D200941DBE /* XCRemoteSwiftPackageReference "wireguard-apple" */;
+			package = A241447C2B3044D200941DBE /* XCRemoteSwiftPackageReference "awg-apple" */;
 			productName = WireGuardKit;
 		};
 /* End XCSwiftPackageProductDependency section */
