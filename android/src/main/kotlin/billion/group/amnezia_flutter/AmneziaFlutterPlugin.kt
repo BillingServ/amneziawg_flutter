@@ -43,7 +43,6 @@ class AmneziaFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private lateinit var channel: MethodChannel
     private lateinit var events: EventChannel
     private lateinit var tunnelName: String
-    private val futureBackend = CompletableDeferred<Backend>()
     private var vpnStageSink: EventChannel.EventSink? = null
     private val scope = CoroutineScope(Job() + Dispatchers.Main.immediate)
     private var backend: Backend? = null
@@ -90,15 +89,6 @@ class AmneziaFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         events = EventChannel(flutterPluginBinding.binaryMessenger, METHOD_EVENT_NAME)
         context = flutterPluginBinding.applicationContext
 
-        scope.launch(Dispatchers.IO) {
-            try {
-                backend = createBackend()
-                futureBackend.complete(backend!!)
-            } catch (e: Throwable) {
-                Log.e(TAG, Log.getStackTraceString(e))
-            }
-        }
-
         channel.setMethodCallHandler(this)
         events.setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
@@ -114,6 +104,7 @@ class AmneziaFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     }
 
+    @Synchronized
     private fun createBackend(): Backend {
         if (backend == null) {
             backend = GoBackend(context, NoopTunnelActionHandler())
@@ -207,7 +198,8 @@ class AmneziaFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private fun disconnect(result: Result) {
         scope.launch(Dispatchers.IO) {
             try {
-                if (futureBackend.await().runningTunnelNames.isEmpty()) {
+                val backend = createBackend()
+                if (backend.runningTunnelNames.isEmpty()) {
                     // Backend doesn't know about any tunnels - this happens after app restart
                     // Check if VPN is actually still running via system API
                     if (isVpnActive()) {
@@ -230,7 +222,7 @@ class AmneziaFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     throw Exception("Tunnel is not running")
                 }
                 updateStage("disconnecting")
-                futureBackend.await().setState(
+                backend.setState(
                     tunnel(tunnelName) { state ->
                         scope.launch(Dispatchers.Main) {
                             Log.i(TAG, "onStateChange - $state")
@@ -310,7 +302,7 @@ class AmneziaFlutterPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 val inputStream = ByteArrayInputStream(wgQuickConfig.toByteArray())
                 config = Config.parse(inputStream)
                 updateStage("connecting")
-                futureBackend.await().setState(
+                createBackend().setState(
                     tunnel(tunnelName) { state ->
                         scope.launch(Dispatchers.Main) {
                             Log.i(TAG, "onStateChange - $state")
