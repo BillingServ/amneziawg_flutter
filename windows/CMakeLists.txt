@@ -1,0 +1,76 @@
+# The Flutter tooling requires that developers have a version of Visual Studio
+# installed that includes CMake 3.14 or later. You should not increase this
+# version, as doing so will cause the plugin to fail to compile for some
+# customers of the plugin.
+cmake_minimum_required(VERSION 3.14)
+
+# get_cmake_property(_variableNames VARIABLES)
+# list (SORT _variableNames)
+# foreach (_variableName ${_variableNames})
+#     message(STATUS "${_variableName}=${${_variableName}}")
+# endforeach()
+
+# Project-level configuration.
+set(PROJECT_NAME "wireguard_flutter")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+# This value is used when generating builds using this plugin, so it must
+# not be changed
+set(PLUGIN_NAME "wireguard_flutter_plugin")
+
+# Any new source files that you add to the plugin should be added here.
+list(APPEND PLUGIN_SOURCES
+  "wireguard_flutter_plugin.cpp"
+  "wireguard_flutter_plugin.h"
+  "wireguard_tunnel_manager.cpp"
+  "wireguard_tunnel_manager.h"
+  "utils.cpp"
+  "utils.h"
+)
+
+# Define the plugin library target. Its name must not be changed (see comment
+# on PLUGIN_NAME above).
+add_library(${PLUGIN_NAME} SHARED
+  "include/wireguard_flutter/wireguard_flutter_plugin_c_api.h"
+  "wireguard_flutter_plugin_c_api.cpp"
+  ${PLUGIN_SOURCES}
+)
+
+# Apply a standard set of build settings that are configured in the
+# application-level CMakeLists.txt. This can be removed for plugins that want
+# full control over build settings.
+apply_standard_settings(${PLUGIN_NAME})
+
+# Symbols are hidden by default to reduce the chance of accidental conflicts
+# between plugins. This should not be removed; any symbols that should be
+# exported should be explicitly exported with the FLUTTER_PLUGIN_EXPORT macro.
+set_target_properties(${PLUGIN_NAME} PROPERTIES
+  CXX_VISIBILITY_PRESET hidden)
+target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
+
+# Source include directories and library dependencies. Add any plugin-specific
+# dependencies here.
+add_subdirectory(external)
+target_link_libraries(${PLUGIN_NAME} PRIVATE base64)
+
+add_compile_definitions(WIN32_LEAN_AND_MEAN) # for Wireguard winsock/windows conflict
+
+set(TUNNEL_ARCH_DIR "x64")
+if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+  set(TUNNEL_ARCH_DIR "x86")
+endif()
+
+target_include_directories(${PLUGIN_NAME} INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin iphlpapi ws2_32)
+
+# List of absolute paths to libraries that should be bundled with the plugin.
+# This list could contain prebuilt libraries, or libraries created by an
+# external build triggered from this build file.
+set(wireguard_flutter_bundled_libraries
+  "${CMAKE_CURRENT_SOURCE_DIR}/${TUNNEL_ARCH_DIR}/tunnel.dll"
+  PARENT_SCOPE
+)
+
+SET_TARGET_PROPERTIES(${BINARY_NAME} PROPERTIES LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\" /SUBSYSTEM:WINDOWS")
