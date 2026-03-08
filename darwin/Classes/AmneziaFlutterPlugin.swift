@@ -236,6 +236,7 @@ class VPNUtils {
               protocolConfiguration.providerBundleIdentifier = providerBundleIdentifier!
               protocolConfiguration.serverAddress = serverAddress
               protocolConfiguration.providerConfiguration = [
+                  "WgQuickConfig": wgQuickConfig!,
                   "wgQuickConfig": wgQuickConfig!
               ]
               

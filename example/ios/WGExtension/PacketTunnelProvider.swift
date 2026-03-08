@@ -1,45 +1,33 @@
 //
 //  PacketTunnelProvider.swift
-//  WireGuardNetworkExtension
+//  WGExtension
 //
-//  Created by Alexandr Ruban on 05.10.2023.
-//
-
-// SPDX-License-Identifier: MIT
-// Copyright © 2018-2023 WireGuard LLC. All Rights Reserved.
-
-// SPDX-License-Identifier: MIT
-// Copyright © 2018-2023 WireGuard LLC. All Rights Reserved.
 
 import Foundation
 import NetworkExtension
 import WireGuardKit
-
+import os.log
 
 enum PacketTunnelProviderError: String, Error {
-    case invalidProtocolConfiguration
-    case cantParseWgQuickConfig
+    case savedProtocolConfigurationIsInvalid
+    case dnsResolutionFailure
+    case couldNotStartBackend
+    case couldNotDetermineFileDescriptor
+    case couldNotSetNetworkSettings
 }
-
 
 extension String {
-
     func splitToArray(separator: Character = ",", trimmingCharacters: CharacterSet? = nil) -> [String] {
-        return split(separator: separator)
-            .map {
-                if let charSet = trimmingCharacters {
-                    return $0.trimmingCharacters(in: charSet)
-                } else {
-                    return String($0)
-                }
+        split(separator: separator).map {
+            if let trimmingCharacters {
+                return $0.trimmingCharacters(in: trimmingCharacters)
+            }
+            return String($0)
         }
     }
-
 }
 
-
 extension Optional where Wrapped == String {
-
     func splitToArray(separator: Character = ",", trimmingCharacters: CharacterSet? = nil) -> [String] {
         switch self {
         case .none:
@@ -48,12 +36,9 @@ extension Optional where Wrapped == String {
             return wrapped.splitToArray(separator: separator, trimmingCharacters: trimmingCharacters)
         }
     }
-
 }
 
-
 extension TunnelConfiguration {
-
     enum ParserState {
         case inInterfaceSection
         case inPeerSection
@@ -90,7 +75,6 @@ extension TunnelConfiguration {
         var peerConfigurations = [PeerConfiguration]()
 
         let lines = wgQuickConfig.split { $0.isNewline }
-
         var parserState = ParserState.notInASection
         var attributes = [String: String]()
 
@@ -107,11 +91,11 @@ extension TunnelConfiguration {
 
             if !trimmedLine.isEmpty {
                 if let equalsIndex = trimmedLine.firstIndex(of: "=") {
-                    // Line contains an attribute
                     let keyWithCase = trimmedLine[..<equalsIndex].trimmingCharacters(in: .whitespacesAndNewlines)
                     let key = keyWithCase.lowercased()
                     let value = trimmedLine[trimmedLine.index(equalsIndex, offsetBy: 1)...].trimmingCharacters(in: .whitespacesAndNewlines)
                     let keysWithMultipleEntriesAllowed: Set<String> = ["address", "allowedips", "dns"]
+
                     if let presentValue = attributes[key] {
                         if keysWithMultipleEntriesAllowed.contains(key) {
                             attributes[key] = presentValue + "," + value
@@ -121,8 +105,15 @@ extension TunnelConfiguration {
                     } else {
                         attributes[key] = value
                     }
-                    let interfaceSectionKeys: Set<String> = ["privatekey", "listenport", "address", "dns", "mtu", "jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4"]
-                    let peerSectionKeys: Set<String> = ["publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"]
+
+                    let interfaceSectionKeys: Set<String> = [
+                        "privatekey", "listenport", "address", "dns", "mtu",
+                        "jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4"
+                    ]
+                    let peerSectionKeys: Set<String> = [
+                        "publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"
+                    ]
+
                     if parserState == .inInterfaceSection {
                         guard interfaceSectionKeys.contains(key) else {
                             throw ParseError.interfaceHasUnrecognizedKey(keyWithCase)
@@ -138,9 +129,7 @@ extension TunnelConfiguration {
             }
 
             let isLastLine = lineIndex == lines.count - 1
-
             if isLastLine || lowercasedLine == "[interface]" || lowercasedLine == "[peer]" {
-                // Previous section has ended; process the attributes collected so far
                 if parserState == .inInterfaceSection {
                     let interface = try TunnelConfiguration.collate(interfaceAttributes: attributes)
                     guard interfaceConfiguration == nil else { throw ParseError.multipleInterfaces }
@@ -160,85 +149,17 @@ extension TunnelConfiguration {
             }
         }
 
-        let peerPublicKeysArray = peerConfigurations.map { $0.publicKey }
+        let peerPublicKeysArray = peerConfigurations.map(\.publicKey)
         let peerPublicKeysSet = Set<PublicKey>(peerPublicKeysArray)
         if peerPublicKeysArray.count != peerPublicKeysSet.count {
             throw ParseError.multiplePeersWithSamePublicKey
         }
 
-        if let interfaceConfiguration = interfaceConfiguration {
+        if let interfaceConfiguration {
             self.init(name: name, interface: interfaceConfiguration, peers: peerConfigurations)
         } else {
             throw ParseError.noInterface
         }
-    }
-
-    func asWgQuickConfig() -> String {
-        var output = "[Interface]\n"
-        output.append("PrivateKey = \(interface.privateKey.base64Key)\n")
-        if let listenPort = interface.listenPort {
-            output.append("ListenPort = \(listenPort)\n")
-        }
-        if let Jc = interface.Jc {
-            output.append("Jc = \(Jc)\n")
-        }
-        if let Jmin = interface.Jmin {
-            output.append("Jmin = \(Jmin)\n")
-        }
-        if let Jmax = interface.Jmax {
-            output.append("Jmax = \(Jmax)\n")
-        }
-        if let S1 = interface.S1 {
-            output.append("S1 = \(S1)\n")
-        }
-        if let S2 = interface.S2 {
-            output.append("S2 = \(S2)\n")
-        }
-        if let H1 = interface.H1 {
-            output.append("H1 = \(H1)\n")
-        }
-        if let H2 = interface.H2 {
-            output.append("H2 = \(H2)\n")
-        }
-        if let H3 = interface.H3 {
-            output.append("H3 = \(H3)\n")
-        }
-        if let H4 = interface.H4 {
-            output.append("H4 = \(H4)\n")
-        }
-        if !interface.addresses.isEmpty {
-            let addressString = interface.addresses.map { $0.stringRepresentation }.joined(separator: ", ")
-            output.append("Address = \(addressString)\n")
-        }
-        if !interface.dns.isEmpty || !interface.dnsSearch.isEmpty {
-            var dnsLine = interface.dns.map { $0.stringRepresentation }
-            dnsLine.append(contentsOf: interface.dnsSearch)
-            let dnsString = dnsLine.joined(separator: ", ")
-            output.append("DNS = \(dnsString)\n")
-        }
-        if let mtu = interface.mtu {
-            output.append("MTU = \(mtu)\n")
-        }
-
-        for peer in peers {
-            output.append("\n[Peer]\n")
-            output.append("PublicKey = \(peer.publicKey.base64Key)\n")
-            if let preSharedKey = peer.preSharedKey?.base64Key {
-                output.append("PresharedKey = \(preSharedKey)\n")
-            }
-            if !peer.allowedIPs.isEmpty {
-                let allowedIPsString = peer.allowedIPs.map { $0.stringRepresentation }.joined(separator: ", ")
-                output.append("AllowedIPs = \(allowedIPsString)\n")
-            }
-            if let endpoint = peer.endpoint {
-                output.append("Endpoint = \(endpoint.stringRepresentation)\n")
-            }
-            if let persistentKeepAlive = peer.persistentKeepAlive {
-                output.append("PersistentKeepalive = \(persistentKeepAlive)\n")
-            }
-        }
-
-        return output
     }
 
     private static func collate(interfaceAttributes attributes: [String: String]) throws -> InterfaceConfiguration {
@@ -248,7 +169,9 @@ extension TunnelConfiguration {
         guard let privateKey = PrivateKey(base64Key: privateKeyString) else {
             throw ParseError.interfaceHasInvalidPrivateKey(privateKeyString)
         }
+
         var interface = InterfaceConfiguration(privateKey: privateKey)
+
         if let listenPortString = attributes["listenport"] {
             guard let listenPort = UInt16(listenPortString) else {
                 throw ParseError.interfaceHasInvalidListenPort(listenPortString)
@@ -284,60 +207,43 @@ extension TunnelConfiguration {
             }
             interface.mtu = mtu
         }
-        if let JcString = attributes["jc"] {
-            guard let jc = UInt16(JcString) else {
-                throw ParseError.interfaceHasInvalidCustomParam(JcString)
-            }
-            interface.Jc = jc
+        if let value = attributes["jc"] {
+            guard let parsed = UInt16(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.Jc = parsed
         }
-        if let JminString = attributes["jmin"] {
-            guard let jmin = UInt16(JminString) else {
-                throw ParseError.interfaceHasInvalidCustomParam(JminString)
-            }
-            interface.Jmin = jmin
+        if let value = attributes["jmin"] {
+            guard let parsed = UInt16(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.Jmin = parsed
         }
-        if let JmaxString = attributes["jmax"] {
-            guard let jmax = UInt16(JmaxString) else {
-                throw ParseError.interfaceHasInvalidCustomParam(JmaxString)
-            }
-            interface.Jmax = jmax
+        if let value = attributes["jmax"] {
+            guard let parsed = UInt16(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.Jmax = parsed
         }
-        if let S1String = attributes["s1"] {
-            guard let s1 = UInt16(S1String) else {
-                throw ParseError.interfaceHasInvalidCustomParam(S1String)
-            }
-            interface.S1 = s1
+        if let value = attributes["s1"] {
+            guard let parsed = UInt16(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.S1 = parsed
         }
-        if let S2String = attributes["s2"] {
-            guard let s2 = UInt16(S2String) else {
-                throw ParseError.interfaceHasInvalidCustomParam(S2String)
-            }
-            interface.S2 = s2
+        if let value = attributes["s2"] {
+            guard let parsed = UInt16(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.S2 = parsed
         }
-        if let H1String = attributes["h1"] {
-            guard let h1 = UInt32(H1String) else {
-                throw ParseError.interfaceHasInvalidCustomParam(H1String)
-            }
-            interface.H1 = h1
+        if let value = attributes["h1"] {
+            guard let parsed = UInt32(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.H1 = parsed
         }
-        if let H2String = attributes["h2"] {
-            guard let h2 = UInt32(H2String) else {
-                throw ParseError.interfaceHasInvalidCustomParam(H2String)
-            }
-            interface.H2 = h2
+        if let value = attributes["h2"] {
+            guard let parsed = UInt32(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.H2 = parsed
         }
-        if let H3String = attributes["h3"] {
-            guard let h3 = UInt32(H3String) else {
-                throw ParseError.interfaceHasInvalidCustomParam(H3String)
-            }
-            interface.H3 = h3
+        if let value = attributes["h3"] {
+            guard let parsed = UInt32(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.H3 = parsed
         }
-        if let H4String = attributes["h4"] {
-            guard let h4 = UInt32(H4String) else {
-                throw ParseError.interfaceHasInvalidCustomParam(H4String)
-            }
-            interface.H4 = h4
+        if let value = attributes["h4"] {
+            guard let parsed = UInt32(value) else { throw ParseError.interfaceHasInvalidCustomParam(value) }
+            interface.H4 = parsed
         }
+
         return interface
     }
 
@@ -348,7 +254,9 @@ extension TunnelConfiguration {
         guard let publicKey = PublicKey(base64Key: publicKeyString) else {
             throw ParseError.peerHasInvalidPublicKey(publicKeyString)
         }
+
         var peer = PeerConfiguration(publicKey: publicKey)
+
         if let preSharedKeyString = attributes["presharedkey"] {
             guard let preSharedKey = PreSharedKey(base64Key: preSharedKeyString) else {
                 throw ParseError.peerHasInvalidPreSharedKey(preSharedKeyString)
@@ -377,85 +285,76 @@ extension TunnelConfiguration {
             }
             peer.persistentKeepAlive = persistentKeepAlive
         }
+
         return peer
     }
-
 }
 
-
+extension NETunnelProviderProtocol {
+    func asTunnelConfiguration(called name: String? = nil) -> TunnelConfiguration? {
+        if let config = providerConfiguration?["WgQuickConfig"] as? String {
+            return try? TunnelConfiguration(fromWgQuickConfig: config, called: name)
+        }
+        if let config = providerConfiguration?["wgQuickConfig"] as? String {
+            return try? TunnelConfiguration(fromWgQuickConfig: config, called: name)
+        }
+        return nil
+    }
+}
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
-
     private lazy var adapter: WireGuardAdapter = {
-        return WireGuardAdapter(with: self) { [weak self] _, message in
-            self?.log(message)
+        WireGuardAdapter(with: self) { logLevel, message in
+            os_log("%{public}s", log: .default, type: logLevel.osLogLevel, message)
         }
     }()
 
-    func log(_ message: String) {
-        NSLog("WireGuard Tunnel: %@\n", message)
-    }
+    override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
+        guard let tunnelProviderProtocol = protocolConfiguration as? NETunnelProviderProtocol,
+              let tunnelConfiguration = tunnelProviderProtocol.asTunnelConfiguration() else {
+            completionHandler(PacketTunnelProviderError.savedProtocolConfigurationIsInvalid)
+            return
+        }
 
-    override func startTunnel(options: [String : NSObject]?, completionHandler: @escaping (Error?) -> Void) {
-        log("Starting tunnel")
-        guard let protocolConfiguration = self.protocolConfiguration as? NETunnelProviderProtocol,
-              let providerConfiguration = protocolConfiguration.providerConfiguration,
-              let wgQuickConfig = providerConfiguration["wgQuickConfig"] as? String else {
-            log("Invalid provider configuration")
-            completionHandler(PacketTunnelProviderError.invalidProtocolConfiguration)
-            return
-        }
-        
-        log("wg-quick config parseable")
-        guard let tunnelConfiguration = try? TunnelConfiguration(fromWgQuickConfig: wgQuickConfig) else {
-            log("wg-quick config not parseable")
-            completionHandler(PacketTunnelProviderError.cantParseWgQuickConfig)
-            return
-        }
-        
-        log("adapter.start")
-        adapter.start(tunnelConfiguration: tunnelConfiguration) { [weak self] adapterError in
-            guard let self = self else { return }
-            if let adapterError = adapterError {
-                self.log("WireGuard adapter error: \(adapterError.localizedDescription)")
-            } else {
-                let interfaceName = self.adapter.interfaceName ?? "unknown"
-                self.log("Tunnel interface is \(interfaceName)")
+        adapter.start(tunnelConfiguration: tunnelConfiguration) { adapterError in
+            guard let adapterError else {
+                completionHandler(nil)
+                return
             }
-            completionHandler(adapterError)
+
+            switch adapterError {
+            case .cannotLocateTunnelFileDescriptor:
+                completionHandler(PacketTunnelProviderError.couldNotDetermineFileDescriptor)
+            case .dnsResolution:
+                completionHandler(PacketTunnelProviderError.dnsResolutionFailure)
+            case .setNetworkSettings:
+                completionHandler(PacketTunnelProviderError.couldNotSetNetworkSettings)
+            case .startWireGuardBackend:
+                completionHandler(PacketTunnelProviderError.couldNotStartBackend)
+            case .invalidState:
+                fatalError()
+            }
         }
     }
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        log("Stopping tunnel")
-        adapter.stop { [weak self] error in
-            guard let self = self else { return }
-            if let error = error {
-                self.log("Failed to stop WireGuard adapter: \(error.localizedDescription)")
-            }
+        adapter.stop { _ in
             completionHandler()
 
             #if os(macOS)
-            // HACK: We have to kill the tunnel process ourselves because of a macOS bug
             exit(0)
             #endif
         }
     }
-
-    override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
-        // Add code here to handle the message.
-        if let handler = completionHandler {
-            handler(messageData)
-        }
-    }
-
-    override func sleep(completionHandler: @escaping () -> Void) {
-        // Add code here to get ready to sleep.
-        completionHandler()
-    }
-
-    override func wake() {
-        // Add code here to wake up.
-    }
 }
 
+extension WireGuardLogLevel {
+    var osLogLevel: OSLogType {
+        switch self {
+        case .verbose:
+            return .debug
+        case .error:
+            return .error
+        }
+    }
+}
