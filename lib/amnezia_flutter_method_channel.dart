@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 
 import 'amnezia_flutter_platform_interface.dart';
@@ -11,15 +14,16 @@ class AmneziaFlutterMethodChannel extends AmneziaFlutterPlatformInterface {
   static const _eventChannel = EventChannel(_eventChannelVpnStage);
 
   @override
-  Stream<VpnStage> get vpnStageSnapshot =>
-      _eventChannel.receiveBroadcastStream().map(
-            (event) => event == VpnStage.denied.code
-                ? VpnStage.disconnected
-                : VpnStage.values.firstWhere(
-                    (stage) => stage.code == event,
-                    orElse: () => VpnStage.noConnection,
-                  ),
-          );
+  Stream<VpnStage> get vpnStageSnapshot => Platform.isWindows
+      ? _pollVpnStageSnapshot()
+      : _eventChannel.receiveBroadcastStream().map(
+          (event) => event == VpnStage.denied.code
+              ? VpnStage.disconnected
+              : VpnStage.values.firstWhere(
+                  (stage) => stage.code == event,
+                  orElse: () => VpnStage.noConnection,
+                ),
+        );
 
   @override
   Future<void> initialize({required String interfaceName}) {
@@ -57,4 +61,19 @@ class AmneziaFlutterMethodChannel extends AmneziaFlutterPlatformInterface {
               )
             : VpnStage.disconnected,
       );
+
+  Stream<VpnStage> _pollVpnStageSnapshot() async* {
+    VpnStage? previousStage;
+
+    while (true) {
+      await refreshStage();
+      final nextStage = await stage();
+      if (nextStage != previousStage) {
+        previousStage = nextStage;
+        yield nextStage;
+      }
+
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
+  }
 }

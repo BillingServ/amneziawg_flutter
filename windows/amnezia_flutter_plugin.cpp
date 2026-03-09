@@ -142,8 +142,21 @@ namespace amnezia_flutter
         return;
       }
 
+      tunnel_manager_->processPendingStatusUpdates();
       string status = tunnel_manager_->getStatus();
       result->Success(status);
+      return;
+    }
+    else if (call.method_name() == "refresh")
+    {
+      if (tunnel_manager_ == nullptr)
+      {
+        result->Error("Invalid state: tunnel manager not initialized");
+        return;
+      }
+
+      tunnel_manager_->processPendingStatusUpdates();
+      result->Success();
       return;
     }
     else if (call.method_name() == "getWireGuardStatistics")
@@ -156,6 +169,7 @@ namespace amnezia_flutter
 
       try
       {
+        tunnel_manager_->processPendingStatusUpdates();
         auto stats = tunnel_manager_->getStatistics();
         
         EncodableMap statsMap;
@@ -184,6 +198,7 @@ namespace amnezia_flutter
     if (tunnel_manager_ != nullptr)
     {
       tunnel_manager_->setEventSink(events_.get());
+      tunnel_manager_->processPendingStatusUpdates();
     }
     return nullptr;
   }

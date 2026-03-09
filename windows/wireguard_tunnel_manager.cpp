@@ -501,6 +501,7 @@ void WireGuardTunnelManager::updateStatus(const std::string& status) {
 
 void WireGuardTunnelManager::updateStatusThreadSafe(const std::string& status) {
     std::lock_guard<std::mutex> lock(statusMutex);
+    currentStatus = status;
     pendingStatusUpdates.push(status);
 }
 
