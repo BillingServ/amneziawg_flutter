@@ -273,19 +273,24 @@ bool WireGuardTunnelManager::deleteService() {
 bool WireGuardTunnelManager::checkConnectionStatus() {
     // Check if WireGuard adapter exists and is up
     ULONG bufferSize = 15000;
-    PIP_ADAPTER_ADDRESSES addresses = (IP_ADAPTER_ADDRESSES*)malloc(bufferSize);
-    
-    if (!addresses) {
-        return false;
+    PIP_ADAPTER_ADDRESSES addresses = nullptr;
+    ULONG result = ERROR_BUFFER_OVERFLOW;
+
+    while (result == ERROR_BUFFER_OVERFLOW) {
+        free(addresses);
+        addresses = static_cast<IP_ADAPTER_ADDRESSES*>(malloc(bufferSize));
+        if (!addresses) {
+            return false;
+        }
+
+        result = GetAdaptersAddresses(
+            AF_UNSPEC,
+            GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_INCLUDE_GATEWAYS,
+            NULL,
+            addresses,
+            &bufferSize
+        );
     }
-    
-    ULONG result = GetAdaptersAddresses(
-        AF_UNSPEC,
-        GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_INCLUDE_GATEWAYS,
-        NULL,
-        addresses,
-        &bufferSize
-    );
     
     bool connected = false;
     
@@ -333,19 +338,24 @@ std::map<std::string, uint64_t> WireGuardTunnelManager::getWireGuardInterfaceSta
     stats["speed_out_bps"] = 0;
     
     ULONG bufferSize = 15000;
-    PIP_ADAPTER_ADDRESSES addresses = (IP_ADAPTER_ADDRESSES*)malloc(bufferSize);
-    
-    if (!addresses) {
-        return stats;
+    PIP_ADAPTER_ADDRESSES addresses = nullptr;
+    ULONG result = ERROR_BUFFER_OVERFLOW;
+
+    while (result == ERROR_BUFFER_OVERFLOW) {
+        free(addresses);
+        addresses = static_cast<IP_ADAPTER_ADDRESSES*>(malloc(bufferSize));
+        if (!addresses) {
+            return stats;
+        }
+
+        result = GetAdaptersAddresses(
+            AF_UNSPEC,
+            GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_INCLUDE_GATEWAYS,
+            NULL,
+            addresses,
+            &bufferSize
+        );
     }
-    
-    ULONG result = GetAdaptersAddresses(
-        AF_UNSPEC,
-        GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_INCLUDE_GATEWAYS,
-        NULL,
-        addresses,
-        &bufferSize
-    );
     
     if (result == NO_ERROR) {
         PIP_ADAPTER_ADDRESSES currentAddress = addresses;
@@ -645,20 +655,24 @@ void WireGuardTunnelManager::logServiceStatus(const std::string& context) {
 
 void WireGuardTunnelManager::logAdapterSnapshot(const std::string& context) {
     ULONG bufferSize = 15000;
-    PIP_ADAPTER_ADDRESSES addresses =
-        static_cast<IP_ADAPTER_ADDRESSES*>(malloc(bufferSize));
+    PIP_ADAPTER_ADDRESSES addresses = nullptr;
+    ULONG result = ERROR_BUFFER_OVERFLOW;
 
-    if (!addresses) {
-        std::cerr << "WireGuardTunnelManager: Failed to allocate adapter buffer" << std::endl;
-        return;
+    while (result == ERROR_BUFFER_OVERFLOW) {
+        free(addresses);
+        addresses = static_cast<IP_ADAPTER_ADDRESSES*>(malloc(bufferSize));
+        if (!addresses) {
+            std::cerr << "WireGuardTunnelManager: Failed to allocate adapter buffer" << std::endl;
+            return;
+        }
+
+        result = GetAdaptersAddresses(
+            AF_UNSPEC,
+            GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_INCLUDE_GATEWAYS,
+            NULL,
+            addresses,
+            &bufferSize);
     }
-
-    ULONG result = GetAdaptersAddresses(
-        AF_UNSPEC,
-        GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_INCLUDE_GATEWAYS,
-        NULL,
-        addresses,
-        &bufferSize);
 
     if (result != NO_ERROR) {
         std::cerr << "WireGuardTunnelManager: Adapter snapshot [" << context
