@@ -66,6 +66,7 @@ namespace amnezia_flutter
   void AmneziaFlutterPlugin::HandleMethodCall(const MethodCall<EncodableValue> &call,
                                                 unique_ptr<MethodResult<EncodableValue>> result)
   {
+    cout << "AmneziaFlutterPlugin: Method call -> " << call.method_name() << endl;
     const auto *args = get_if<EncodableMap>(call.arguments());
 
     if (call.method_name() == "initialize")
@@ -144,6 +145,7 @@ namespace amnezia_flutter
 
       tunnel_manager_->processPendingStatusUpdates();
       string status = tunnel_manager_->getStatus();
+      cout << "AmneziaFlutterPlugin: Stage request returning -> " << status << endl;
       result->Success(status);
       return;
     }
@@ -156,6 +158,7 @@ namespace amnezia_flutter
       }
 
       tunnel_manager_->processPendingStatusUpdates();
+      cout << "AmneziaFlutterPlugin: Refresh processed pending status updates" << endl;
       result->Success();
       return;
     }
@@ -171,6 +174,10 @@ namespace amnezia_flutter
       {
         tunnel_manager_->processPendingStatusUpdates();
         auto stats = tunnel_manager_->getStatistics();
+        cout << "AmneziaFlutterPlugin: Statistics request byte_in=" << stats["byte_in"]
+             << " byte_out=" << stats["byte_out"]
+             << " speed_in_bps=" << stats["speed_in_bps"]
+             << " speed_out_bps=" << stats["speed_out_bps"] << endl;
         
         EncodableMap statsMap;
         statsMap[EncodableValue("byte_in")] = EncodableValue(static_cast<int64_t>(stats["byte_in"]));
@@ -195,6 +202,7 @@ namespace amnezia_flutter
       unique_ptr<EventSink<EncodableValue>> &&events)
   {
     events_ = move(events);
+    cout << "AmneziaFlutterPlugin: Event listener attached" << endl;
     if (tunnel_manager_ != nullptr)
     {
       tunnel_manager_->setEventSink(events_.get());
@@ -206,6 +214,7 @@ namespace amnezia_flutter
   unique_ptr<StreamHandlerError<EncodableValue>> AmneziaFlutterPlugin::OnCancel(
       const EncodableValue *arguments)
   {
+    cout << "AmneziaFlutterPlugin: Event listener detached" << endl;
     events_ = nullptr;
     if (tunnel_manager_ != nullptr)
     {

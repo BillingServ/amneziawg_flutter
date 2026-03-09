@@ -11,12 +11,60 @@
 #include <sstream>
 #include <chrono>
 #include <vector>
+#include <iomanip>
 
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "advapi32.lib")
 
 namespace amnezia_flutter {
+
+namespace {
+
+std::string narrow(const std::wstring& value) {
+    if (value.empty()) {
+        return std::string();
+    }
+
+    const int sizeNeeded = WideCharToMultiByte(
+        CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
+    std::string output(sizeNeeded, '\0');
+    WideCharToMultiByte(
+        CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), output.data(), sizeNeeded, nullptr, nullptr);
+    return output;
+}
+
+std::string trimCopy(std::string value) {
+    const auto start = value.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) {
+        return "";
+    }
+    const auto end = value.find_last_not_of(" \t\r\n");
+    return value.substr(start, end - start + 1);
+}
+
+std::string operStatusToString(IF_OPER_STATUS status) {
+    switch (status) {
+        case IfOperStatusUp:
+            return "up";
+        case IfOperStatusDown:
+            return "down";
+        case IfOperStatusTesting:
+            return "testing";
+        case IfOperStatusUnknown:
+            return "unknown";
+        case IfOperStatusDormant:
+            return "dormant";
+        case IfOperStatusNotPresent:
+            return "not_present";
+        case IfOperStatusLowerLayerDown:
+            return "lower_layer_down";
+        default:
+            return "status_" + std::to_string(static_cast<int>(status));
+    }
+}
+
+}  // namespace
 
 WireGuardTunnelManager::WireGuardTunnelManager() {
     std::cout << "WireGuardTunnelManager: Initializing..." << std::endl;
@@ -69,8 +117,9 @@ bool WireGuardTunnelManager::createConfigFile(const std::string& config) {
         
         configFile << config;
         configFile.close();
-        
+
         std::wcout << L"Config file created: " << currentConfigPath << std::endl;
+        logConfigSummary(config);
         return true;
     }
     catch (const std::exception& e) {
@@ -165,8 +214,9 @@ bool WireGuardTunnelManager::startService() {
             return false;
         }
     }
-    
+
     std::cout << "Service started successfully" << std::endl;
+    logServiceStatus("after StartServiceW");
     return true;
 }
 
@@ -250,6 +300,11 @@ bool WireGuardTunnelManager::checkConnectionStatus() {
                 friendlyName.find(L"Amnezia") != std::wstring::npos ||
                 description.find(L"WireGuard") != std::wstring::npos ||
                 friendlyName.find(L"WireGuard") != std::wstring::npos) {
+                std::cout << "WireGuardTunnelManager: Candidate adapter detected"
+                          << " name=" << narrow(friendlyName)
+                          << " description=" << narrow(description)
+                          << " oper_status=" << operStatusToString(currentAddress->OperStatus)
+                          << std::endl;
                 
                 // Store the interface name for statistics
                 wireguardInterfaceName = friendlyName;
@@ -388,11 +443,20 @@ void WireGuardTunnelManager::monitorConnection() {
             std::cout << "WireGuard connection established!" << std::endl;
             isConnecting = false;
             isConnected = true;
+            logAdapterSnapshot("connected");
             updateStatusThreadSafe("connected");
         } else if (isConnecting) {
             connectionCheckAttempts++;
+            if (connectionCheckAttempts == 1 || connectionCheckAttempts % 5 == 0) {
+                std::cout << "WireGuardTunnelManager: Connection poll attempt "
+                          << connectionCheckAttempts << "/" << maxConnectionCheckAttempts << std::endl;
+                logServiceStatus("connection poll");
+                logAdapterSnapshot("connection poll");
+            }
             if (connectionCheckAttempts >= maxConnectionCheckAttempts) {
                 std::cerr << "Connection timeout - adapter not coming up" << std::endl;
+                logServiceStatus("timeout");
+                logAdapterSnapshot("timeout");
                 updateStatusThreadSafe("error");
                 break;
             }
@@ -511,6 +575,137 @@ void WireGuardTunnelManager::processPendingStatusUpdates() {
         updateStatus(pendingStatusUpdates.front());
         pendingStatusUpdates.pop();
     }
+}
+
+void WireGuardTunnelManager::logConfigSummary(const std::string& config) {
+    std::istringstream stream(config);
+    std::string line;
+    std::string endpoint;
+    std::string address;
+    std::string allowedIps;
+    std::string publicKey;
+
+    while (std::getline(stream, line)) {
+        const auto separator = line.find('=');
+        if (separator == std::string::npos) {
+            continue;
+        }
+
+        const std::string key = trimCopy(line.substr(0, separator));
+        const std::string value = trimCopy(line.substr(separator + 1));
+        if (key == "Endpoint") {
+            endpoint = value;
+        } else if (key == "Address") {
+            address = value;
+        } else if (key == "AllowedIPs") {
+            allowedIps = value;
+        } else if (key == "PublicKey") {
+            publicKey = value;
+        }
+    }
+
+    std::cout << "WireGuardTunnelManager: Config summary"
+              << " endpoint=" << (endpoint.empty() ? "<missing>" : endpoint)
+              << " address=" << (address.empty() ? "<missing>" : address)
+              << " allowed_ips=" << (allowedIps.empty() ? "<missing>" : allowedIps)
+              << " peer_key_prefix="
+              << (publicKey.empty() ? "<missing>" : publicKey.substr(0, std::min<size_t>(8, publicKey.size())))
+              << std::endl;
+}
+
+void WireGuardTunnelManager::logServiceStatus(const std::string& context) {
+    if (!serviceHandle) {
+        std::cout << "WireGuardTunnelManager: Service status [" << context << "] handle=null" << std::endl;
+        return;
+    }
+
+    SERVICE_STATUS_PROCESS status;
+    DWORD bytesNeeded = 0;
+    if (!QueryServiceStatusEx(
+            serviceHandle,
+            SC_STATUS_PROCESS_INFO,
+            reinterpret_cast<LPBYTE>(&status),
+            sizeof(status),
+            &bytesNeeded)) {
+        std::cerr << "WireGuardTunnelManager: Failed to query service status [" << context
+                  << "]. Error: " << GetLastError() << std::endl;
+        return;
+    }
+
+    std::cout << "WireGuardTunnelManager: Service status [" << context << "]"
+              << " current_state=" << status.dwCurrentState
+              << " win32_exit=" << status.dwWin32ExitCode
+              << " service_exit=" << status.dwServiceSpecificExitCode
+              << " checkpoint=" << status.dwCheckPoint
+              << " wait_hint=" << status.dwWaitHint
+              << " pid=" << status.dwProcessId
+              << std::endl;
+}
+
+void WireGuardTunnelManager::logAdapterSnapshot(const std::string& context) {
+    ULONG bufferSize = 15000;
+    PIP_ADAPTER_ADDRESSES addresses =
+        static_cast<IP_ADAPTER_ADDRESSES*>(malloc(bufferSize));
+
+    if (!addresses) {
+        std::cerr << "WireGuardTunnelManager: Failed to allocate adapter buffer" << std::endl;
+        return;
+    }
+
+    ULONG result = GetAdaptersAddresses(
+        AF_UNSPEC,
+        GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_INCLUDE_GATEWAYS,
+        NULL,
+        addresses,
+        &bufferSize);
+
+    if (result != NO_ERROR) {
+        std::cerr << "WireGuardTunnelManager: Adapter snapshot [" << context
+                  << "] GetAdaptersAddresses failed: " << result << std::endl;
+        free(addresses);
+        return;
+    }
+
+    std::cout << "WireGuardTunnelManager: Adapter snapshot [" << context << "]" << std::endl;
+    int loggedCount = 0;
+    for (PIP_ADAPTER_ADDRESSES current = addresses; current != nullptr; current = current->Next) {
+        std::wstring description = current->Description ? current->Description : L"";
+        std::wstring friendlyName = current->FriendlyName ? current->FriendlyName : L"";
+        if (description.find(L"Amnezia") == std::wstring::npos &&
+            friendlyName.find(L"Amnezia") == std::wstring::npos &&
+            description.find(L"WireGuard") == std::wstring::npos &&
+            friendlyName.find(L"WireGuard") == std::wstring::npos &&
+            description.find(L"Wintun") == std::wstring::npos &&
+            friendlyName.find(L"Wintun") == std::wstring::npos) {
+            continue;
+        }
+
+        std::ostringstream line;
+        line << "  adapter[" << loggedCount << "]"
+             << " name=" << narrow(friendlyName)
+             << " description=" << narrow(description)
+             << " oper_status=" << operStatusToString(current->OperStatus)
+             << " if_index=" << current->IfIndex;
+
+        if (current->FirstUnicastAddress &&
+            current->FirstUnicastAddress->Address.lpSockaddr &&
+            current->FirstUnicastAddress->Address.lpSockaddr->sa_family == AF_INET) {
+            char ipBuffer[INET_ADDRSTRLEN] = {};
+            sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(
+                current->FirstUnicastAddress->Address.lpSockaddr);
+            InetNtopA(AF_INET, &addr->sin_addr, ipBuffer, sizeof(ipBuffer));
+            line << " ipv4=" << ipBuffer;
+        }
+
+        std::cout << line.str() << std::endl;
+        loggedCount++;
+    }
+
+    if (loggedCount == 0) {
+        std::cout << "  no Amnezia/WireGuard/Wintun adapters detected" << std::endl;
+    }
+
+    free(addresses);
 }
 
 } // namespace amnezia_flutter

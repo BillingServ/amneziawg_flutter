@@ -72,6 +72,9 @@ private:
     bool createConfigFile(const std::string& config);
     void cleanupTempFiles();
     bool checkConnectionStatus();
+    void logConfigSummary(const std::string& config);
+    void logServiceStatus(const std::string& context);
+    void logAdapterSnapshot(const std::string& context);
     std::wstring getAppDirectory();
     std::wstring getAppExecutablePath();
     std::map<std::string, uint64_t> getWireGuardInterfaceStatistics();
