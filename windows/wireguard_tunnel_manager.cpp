@@ -496,6 +496,7 @@ bool WireGuardTunnelManager::startTunnel(const std::string& config) {
     }
     
     std::cout << "WireGuardTunnelManager: Starting tunnel..." << std::endl;
+    logRuntimeDependencies();
     
     // Create config file
     if (!createConfigFile(config)) {
@@ -622,6 +623,31 @@ void WireGuardTunnelManager::logConfigSummary(const std::string& config) {
               << " peer_key_prefix="
               << (publicKey.empty() ? "<missing>" : publicKey.substr(0, std::min<size_t>(8, publicKey.size())))
               << std::endl;
+}
+
+void WireGuardTunnelManager::logRuntimeDependencies() {
+    const std::wstring appDir = getAppDirectory();
+    const std::wstring amneziaTunnelPath = appDir + L"\\amnezia_tunnel.dll";
+    const std::wstring wireGuardTunnelPath = appDir + L"\\wireguard_tunnel.dll";
+    const std::wstring fallbackTunnelPath = appDir + L"\\tunnel.dll";
+    const std::wstring wintunPath = appDir + L"\\wintun.dll";
+
+    auto logFileStatus = [&](const std::wstring& path, const std::string& label) {
+        const DWORD attributes = GetFileAttributesW(path.c_str());
+        const bool exists = attributes != INVALID_FILE_ATTRIBUTES &&
+                            !(attributes & FILE_ATTRIBUTE_DIRECTORY);
+        std::cout << "WireGuardTunnelManager: Dependency check"
+                  << " label=" << label
+                  << " exists=" << (exists ? "yes" : "no")
+                  << " path=" << narrow(path)
+                  << std::endl;
+    };
+
+    std::cout << "WireGuardTunnelManager: App directory -> " << narrow(appDir) << std::endl;
+    logFileStatus(amneziaTunnelPath, "amnezia_tunnel.dll");
+    logFileStatus(wireGuardTunnelPath, "wireguard_tunnel.dll");
+    logFileStatus(fallbackTunnelPath, "tunnel.dll");
+    logFileStatus(wintunPath, "wintun.dll");
 }
 
 void WireGuardTunnelManager::logServiceStatus(const std::string& context) {
