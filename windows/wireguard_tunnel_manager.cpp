@@ -44,6 +44,27 @@ std::string trimCopy(std::string value) {
     return value.substr(start, end - start + 1);
 }
 
+std::string redactConfigLine(const std::string& line) {
+    const auto separator = line.find('=');
+    if (separator == std::string::npos) {
+        return line;
+    }
+
+    const std::string key = trimCopy(line.substr(0, separator));
+    const std::string value = trimCopy(line.substr(separator + 1));
+    if (key == "PrivateKey" || key == "PresharedKey") {
+        return key + " = <redacted>";
+    }
+
+    if (key == "PublicKey") {
+        return key + " = " +
+               (value.empty() ? "<missing>"
+                              : value.substr(0, std::min<size_t>(8, value.size())) + "...");
+    }
+
+    return line;
+}
+
 std::string operStatusToString(IF_OPER_STATUS status) {
     switch (status) {
         case IfOperStatusUp:
@@ -666,6 +687,14 @@ void WireGuardTunnelManager::logConfigSummary(const std::string& config) {
               << " peer_key_prefix="
               << (publicKey.empty() ? "<missing>" : publicKey.substr(0, std::min<size_t>(8, publicKey.size())))
               << std::endl;
+
+    std::cout << "WireGuardTunnelManager: Config dump (redacted)" << std::endl;
+    stream.clear();
+    stream.seekg(0);
+    int lineNumber = 1;
+    while (std::getline(stream, line)) {
+        std::cout << "  [" << lineNumber++ << "] " << redactConfigLine(line) << std::endl;
+    }
 }
 
 void WireGuardTunnelManager::logRuntimeDependencies() {
