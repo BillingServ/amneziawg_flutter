@@ -58,7 +58,6 @@ namespace amnezia_flutter
   AmneziaFlutterPlugin::AmneziaFlutterPlugin() {
     // Create tunnel manager
     tunnel_manager_ = make_unique<WireGuardTunnelManager>();
-    cout << "AmneziaFlutterPlugin: Created with embedded tunnel manager" << endl;
   }
 
   AmneziaFlutterPlugin::~AmneziaFlutterPlugin() {}
@@ -66,7 +65,6 @@ namespace amnezia_flutter
   void AmneziaFlutterPlugin::HandleMethodCall(const MethodCall<EncodableValue> &call,
                                                 unique_ptr<MethodResult<EncodableValue>> result)
   {
-    cout << "AmneziaFlutterPlugin: Method call -> " << call.method_name() << endl;
     const auto *args = get_if<EncodableMap>(call.arguments());
 
     if (call.method_name() == "initialize")
@@ -75,13 +73,10 @@ namespace amnezia_flutter
           ? get_if<string>(ValueOrNull(*args, "interfaceName"))
           : nullptr;
 
-      cout << "AmneziaFlutterPlugin: Initialize called (embedded mode)";
       if (interfaceName != nullptr && tunnel_manager_ != nullptr) {
-        cout << " interfaceName=" << *interfaceName;
         tunnel_manager_->setExpectedInterfaceName(
             std::wstring(interfaceName->begin(), interfaceName->end()));
       }
-      cout << endl;
       
       if (tunnel_manager_ && events_) {
         tunnel_manager_->setEventSink(events_.get());
@@ -104,8 +99,6 @@ namespace amnezia_flutter
         result->Error("Argument 'wgQuickConfig' is required");
         return;
       }
-
-      cout << "AmneziaFlutterPlugin: Starting tunnel with embedded approach" << endl;
       
       try
       {
@@ -129,8 +122,6 @@ namespace amnezia_flutter
         result->Error("Invalid state: tunnel manager not initialized");
         return;
       }
-
-      cout << "AmneziaFlutterPlugin: Stopping tunnel" << endl;
       
       try
       {
@@ -153,7 +144,6 @@ namespace amnezia_flutter
 
       tunnel_manager_->processPendingStatusUpdates();
       string status = tunnel_manager_->getStatus();
-      cout << "AmneziaFlutterPlugin: Stage request returning -> " << status << endl;
       result->Success(status);
       return;
     }
@@ -166,7 +156,6 @@ namespace amnezia_flutter
       }
 
       tunnel_manager_->processPendingStatusUpdates();
-      cout << "AmneziaFlutterPlugin: Refresh processed pending status updates" << endl;
       result->Success();
       return;
     }
@@ -181,12 +170,7 @@ namespace amnezia_flutter
       try
       {
         tunnel_manager_->processPendingStatusUpdates();
-        auto stats = tunnel_manager_->getStatistics();
-        cout << "AmneziaFlutterPlugin: Statistics request byte_in=" << stats["byte_in"]
-             << " byte_out=" << stats["byte_out"]
-             << " speed_in_bps=" << stats["speed_in_bps"]
-             << " speed_out_bps=" << stats["speed_out_bps"] << endl;
-        
+        auto stats = tunnel_manager_->getStatistics();        
         EncodableMap statsMap;
         statsMap[EncodableValue("byte_in")] = EncodableValue(static_cast<int64_t>(stats["byte_in"]));
         statsMap[EncodableValue("byte_out")] = EncodableValue(static_cast<int64_t>(stats["byte_out"]));
@@ -210,7 +194,6 @@ namespace amnezia_flutter
       unique_ptr<EventSink<EncodableValue>> &&events)
   {
     events_ = move(events);
-    cout << "AmneziaFlutterPlugin: Event listener attached" << endl;
     if (tunnel_manager_ != nullptr)
     {
       tunnel_manager_->setEventSink(events_.get());
@@ -222,7 +205,6 @@ namespace amnezia_flutter
   unique_ptr<StreamHandlerError<EncodableValue>> AmneziaFlutterPlugin::OnCancel(
       const EncodableValue *arguments)
   {
-    cout << "AmneziaFlutterPlugin: Event listener detached" << endl;
     events_ = nullptr;
     if (tunnel_manager_ != nullptr)
     {
@@ -232,4 +214,8 @@ namespace amnezia_flutter
   }
 
 } // namespace amnezia_flutter
+
+
+
+
 

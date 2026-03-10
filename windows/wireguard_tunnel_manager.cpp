@@ -187,12 +187,9 @@ std::string wireGuardServiceErrorToString(DWORD code) {
 
 }  // namespace
 
-WireGuardTunnelManager::WireGuardTunnelManager() {
-    std::cout << "WireGuardTunnelManager: Initializing..." << std::endl;
-}
+WireGuardTunnelManager::WireGuardTunnelManager() {}
 
 WireGuardTunnelManager::~WireGuardTunnelManager() {
-    std::cout << "WireGuardTunnelManager: Cleaning up..." << std::endl;
     stopTunnel();
 }
 
@@ -202,8 +199,6 @@ void WireGuardTunnelManager::setEventSink(flutter::EventSink<flutter::EncodableV
 
 void WireGuardTunnelManager::setExpectedInterfaceName(const std::wstring& interfaceName) {
     expectedInterfaceName = interfaceName;
-    std::cout << "WireGuardTunnelManager: Expected interface name set to "
-              << narrow(expectedInterfaceName) << std::endl;
 }
 std::wstring WireGuardTunnelManager::getAppDirectory() {
     wchar_t exePath[MAX_PATH];
@@ -218,9 +213,7 @@ std::wstring WireGuardTunnelManager::getAppExecutablePath() {
     return std::wstring(exePath);
 }
 
-bool WireGuardTunnelManager::createConfigFile(const std::string& config) {
-    std::wcout << L"WireGuardTunnelManager: Creating config file..." << std::endl;
-    
+bool WireGuardTunnelManager::createConfigFile(const std::string& config) {    
     try {
         // Create a temporary file path
         wchar_t tempPath[MAX_PATH];
@@ -244,9 +237,6 @@ bool WireGuardTunnelManager::createConfigFile(const std::string& config) {
         
         configFile << config;
         configFile.close();
-
-        std::wcout << L"Config file created: " << currentConfigPath << std::endl;
-        logConfigSummary(config);
         return true;
     }
     catch (const std::exception& e) {
@@ -257,15 +247,12 @@ bool WireGuardTunnelManager::createConfigFile(const std::string& config) {
 
 void WireGuardTunnelManager::cleanupTempFiles() {
     if (!currentConfigPath.empty()) {
-        std::wcout << L"WireGuardTunnelManager: Cleaning up config file: " << currentConfigPath << std::endl;
         DeleteFileW(currentConfigPath.c_str());
         currentConfigPath.clear();
     }
 }
 
-bool WireGuardTunnelManager::installService() {
-    std::cout << "WireGuardTunnelManager: Installing Windows Service..." << std::endl;
-    
+bool WireGuardTunnelManager::installService() {    
     // Generate unique service name based on timestamp
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
@@ -289,10 +276,7 @@ bool WireGuardTunnelManager::installService() {
     cmdStream << L"\"" << exePath << L"\" /service \"" << serviceName
               << L"\" \"" << currentConfigPath << L"\" \""
               << interfaceNameForService << L"\"";
-    std::wstring cmdLine = cmdStream.str();
-    
-    std::wcout << L"Service command: " << cmdLine << std::endl;
-    
+    std::wstring cmdLine = cmdStream.str();    
     // Create the service
     serviceHandle = CreateServiceW(
         scm,                                    // SCM database
@@ -326,13 +310,10 @@ bool WireGuardTunnelManager::installService() {
     }
     
     CloseServiceHandle(scm);
-    std::cout << "Service installed successfully" << std::endl;
     return true;
 }
 
-bool WireGuardTunnelManager::startService() {
-    std::cout << "WireGuardTunnelManager: Starting service..." << std::endl;
-    
+bool WireGuardTunnelManager::startService() {    
     if (!serviceHandle) {
         std::cerr << "Service handle is NULL" << std::endl;
         return false;
@@ -345,15 +326,10 @@ bool WireGuardTunnelManager::startService() {
             return false;
         }
     }
-
-    std::cout << "Service started successfully" << std::endl;
-    logServiceStatus("after StartServiceW");
     return true;
 }
 
-bool WireGuardTunnelManager::stopService() {
-    std::cout << "WireGuardTunnelManager: Stopping service..." << std::endl;
-    
+bool WireGuardTunnelManager::stopService() {    
     if (!serviceHandle) {
         return true;
     }
@@ -370,20 +346,15 @@ bool WireGuardTunnelManager::stopService() {
     for (int i = 0; i < 30; i++) {
         if (QueryServiceStatus(serviceHandle, &status)) {
             if (status.dwCurrentState == SERVICE_STOPPED) {
-                std::cout << "Service stopped successfully" << std::endl;
                 return true;
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    
-    std::cout << "Service stop timeout" << std::endl;
     return false;
 }
 
-bool WireGuardTunnelManager::deleteService() {
-    std::cout << "WireGuardTunnelManager: Deleting service..." << std::endl;
-    
+bool WireGuardTunnelManager::deleteService() {    
     if (!serviceHandle) {
         return true;
     }
@@ -395,8 +366,6 @@ bool WireGuardTunnelManager::deleteService() {
     
     CloseServiceHandle(serviceHandle);
     serviceHandle = nullptr;
-    
-    std::cout << "Service deleted successfully" << std::endl;
     return true;
 }
 
@@ -436,13 +405,7 @@ bool WireGuardTunnelManager::checkConnectionStatus() {
                     friendlyName,
                     expectedInterfaceName,
                     currentTunnelName,
-                    serviceName)) {
-                std::cout << "WireGuardTunnelManager: Candidate adapter detected"
-                          << " name=" << narrow(friendlyName)
-                          << " description=" << narrow(description)
-                          << " oper_status=" << operStatusToString(currentAddress->OperStatus)
-                          << std::endl;
-                
+                    serviceName)) {                
                 // Store the interface name for statistics
                 wireguardInterfaceName = friendlyName;
                 
@@ -574,32 +537,19 @@ std::map<std::string, uint64_t> WireGuardTunnelManager::getStatistics() {
     return getWireGuardInterfaceStatistics();
 }
 
-void WireGuardTunnelManager::monitorConnection() {
-    std::cout << "WireGuardTunnelManager: Starting connection monitor..." << std::endl;
-    
+void WireGuardTunnelManager::monitorConnection() {    
     int connectionCheckAttempts = 0;
     const int maxConnectionCheckAttempts = 30; // 30 seconds
     
     while (shouldMonitor) {
         // Check for actual connection
         if (isConnecting && checkConnectionStatus()) {
-            std::cout << "WireGuard connection established!" << std::endl;
             isConnecting = false;
             isConnected = true;
-            logAdapterSnapshot("connected");
             updateStatusThreadSafe("connected");
         } else if (isConnecting) {
             connectionCheckAttempts++;
-            if (connectionCheckAttempts == 1 || connectionCheckAttempts % 5 == 0) {
-                std::cout << "WireGuardTunnelManager: Connection poll attempt "
-                          << connectionCheckAttempts << "/" << maxConnectionCheckAttempts << std::endl;
-                logServiceStatus("connection poll");
-                logAdapterSnapshot("connection poll");
-            }
             if (connectionCheckAttempts >= maxConnectionCheckAttempts) {
-                std::cerr << "Connection timeout - adapter not coming up" << std::endl;
-                logServiceStatus("timeout");
-                logAdapterSnapshot("timeout");
                 updateStatusThreadSafe("error");
                 break;
             }
@@ -607,7 +557,6 @@ void WireGuardTunnelManager::monitorConnection() {
         
         // Check if connected adapter went down
         if (isConnected && !checkConnectionStatus()) {
-            std::cout << "WireGuard connection lost" << std::endl;
             isConnected = false;
             updateStatusThreadSafe("disconnected");
             break;
@@ -615,21 +564,15 @@ void WireGuardTunnelManager::monitorConnection() {
         
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    
-    std::cout << "Connection monitor stopped" << std::endl;
 }
+
 
 bool WireGuardTunnelManager::startTunnel(const std::string& config) {
     std::lock_guard<std::mutex> lock(statusMutex);
     
     if (isConnected || isConnecting) {
-        std::cerr << "WireGuardTunnelManager: Already connected or connecting" << std::endl;
         return false;
-    }
-    
-    std::cout << "WireGuardTunnelManager: Starting tunnel..." << std::endl;
-    logRuntimeDependencies();
-    
+    }    
     // Create config file
     if (!createConfigFile(config)) {
         return false;
@@ -662,14 +605,10 @@ bool WireGuardTunnelManager::startTunnel(const std::string& config) {
     // Start monitoring thread
     shouldMonitor = true;
     statusMonitorThread = std::thread(&WireGuardTunnelManager::monitorConnection, this);
-    
-    std::cout << "WireGuardTunnelManager: Tunnel start initiated" << std::endl;
     return true;
 }
 
-void WireGuardTunnelManager::stopTunnel() {
-    std::cout << "WireGuardTunnelManager: Stopping tunnel..." << std::endl;
-    
+void WireGuardTunnelManager::stopTunnel() {    
     // Signal monitor to stop
     shouldMonitor = false;
     
@@ -690,8 +629,6 @@ void WireGuardTunnelManager::stopTunnel() {
     
     // Cleanup
     cleanupTempFiles();
-    
-    std::cout << "WireGuardTunnelManager: Tunnel stopped" << std::endl;
 }
 
 std::string WireGuardTunnelManager::getStatus() {
@@ -704,7 +641,6 @@ void WireGuardTunnelManager::updateStatus(const std::string& status) {
     if (eventSink) {
         eventSink->Success(flutter::EncodableValue(status));
     }
-    std::cout << "WireGuardTunnelManager: Status updated to: " << status << std::endl;
 }
 
 void WireGuardTunnelManager::updateStatusThreadSafe(const std::string& status) {
@@ -721,191 +657,22 @@ void WireGuardTunnelManager::processPendingStatusUpdates() {
     }
 }
 
-void WireGuardTunnelManager::logConfigSummary(const std::string& config) {
-    std::istringstream stream(config);
-    std::string line;
-    std::string endpoint;
-    std::string address;
-    std::string allowedIps;
-    std::string publicKey;
+void WireGuardTunnelManager::logConfigSummary(const std::string& /*config*/) {}
 
-    while (std::getline(stream, line)) {
-        const auto separator = line.find('=');
-        if (separator == std::string::npos) {
-            continue;
-        }
+void WireGuardTunnelManager::logRuntimeDependencies() {}
 
-        const std::string key = trimCopy(line.substr(0, separator));
-        const std::string value = trimCopy(line.substr(separator + 1));
-        if (key == "Endpoint") {
-            endpoint = value;
-        } else if (key == "Address") {
-            address = value;
-        } else if (key == "AllowedIPs") {
-            allowedIps = value;
-        } else if (key == "PublicKey") {
-            publicKey = value;
-        }
-    }
+void WireGuardTunnelManager::logServiceStatus(const std::string& /*context*/) {}
 
-    std::cout << "WireGuardTunnelManager: Config summary"
-              << " endpoint=" << (endpoint.empty() ? "<missing>" : endpoint)
-              << " address=" << (address.empty() ? "<missing>" : address)
-              << " allowed_ips=" << (allowedIps.empty() ? "<missing>" : allowedIps)
-              << " peer_key_prefix="
-              << (publicKey.empty() ? "<missing>" : publicKey.substr(0, std::min<size_t>(8, publicKey.size())))
-              << std::endl;
-
-    std::cout << "WireGuardTunnelManager: Config dump (redacted)" << std::endl;
-    stream.clear();
-    stream.seekg(0);
-    int lineNumber = 1;
-    while (std::getline(stream, line)) {
-        std::cout << "  [" << lineNumber++ << "] " << redactConfigLine(line) << std::endl;
-    }
-}
-
-void WireGuardTunnelManager::logRuntimeDependencies() {
-    const std::wstring appDir = getAppDirectory();
-    const std::wstring amneziaPreferredTunnelPath = appDir + L"\\amneziawg_tunnel.dll";
-    const std::wstring amneziaTunnelPath = appDir + L"\\amnezia_tunnel.dll";
-    const std::wstring wireGuardTunnelPath = appDir + L"\\wireguard_tunnel.dll";
-    const std::wstring fallbackTunnelPath = appDir + L"\\tunnel.dll";
-    const std::wstring wintunPath = appDir + L"\\wintun.dll";
-    const std::wstring wireguardDriverPath = appDir + L"\\wireguard.dll";
-    const std::wstring awgPath = appDir + L"\\awg.exe";
-
-    auto logFileStatus = [&](const std::wstring& path, const std::string& label) {
-        const DWORD attributes = GetFileAttributesW(path.c_str());
-        const bool exists = attributes != INVALID_FILE_ATTRIBUTES &&
-                            !(attributes & FILE_ATTRIBUTE_DIRECTORY);
-        std::cout << "WireGuardTunnelManager: Dependency check"
-                  << " label=" << label
-                  << " exists=" << (exists ? "yes" : "no")
-                  << " path=" << narrow(path)
-                  << std::endl;
-    };
-
-    std::cout << "WireGuardTunnelManager: App directory -> " << narrow(appDir) << std::endl;
-    logFileStatus(amneziaPreferredTunnelPath, "amneziawg_tunnel.dll");
-    logFileStatus(amneziaTunnelPath, "amnezia_tunnel.dll");
-    logFileStatus(wireGuardTunnelPath, "wireguard_tunnel.dll");
-    logFileStatus(fallbackTunnelPath, "tunnel.dll");
-    logFileStatus(wintunPath, "wintun.dll");
-    logFileStatus(wireguardDriverPath, "wireguard.dll");
-    logFileStatus(awgPath, "awg.exe");
-}
-
-void WireGuardTunnelManager::logServiceStatus(const std::string& context) {
-    if (!serviceHandle) {
-        std::cout << "WireGuardTunnelManager: Service status [" << context << "] handle=null" << std::endl;
-        return;
-    }
-
-    SERVICE_STATUS_PROCESS status;
-    DWORD bytesNeeded = 0;
-    if (!QueryServiceStatusEx(
-            serviceHandle,
-            SC_STATUS_PROCESS_INFO,
-            reinterpret_cast<LPBYTE>(&status),
-            sizeof(status),
-            &bytesNeeded)) {
-        std::cerr << "WireGuardTunnelManager: Failed to query service status [" << context
-                  << "]. Error: " << GetLastError() << std::endl;
-        return;
-    }
-
-    std::cout << "WireGuardTunnelManager: Service status [" << context << "]"
-              << " current_state=" << status.dwCurrentState
-              << " win32_exit=" << status.dwWin32ExitCode
-              << " service_exit=" << status.dwServiceSpecificExitCode
-              << " checkpoint=" << status.dwCheckPoint
-              << " wait_hint=" << status.dwWaitHint
-              << " pid=" << status.dwProcessId
-              << std::endl;
-
-    if (status.dwWin32ExitCode == ERROR_SERVICE_SPECIFIC_ERROR &&
-        status.dwServiceSpecificExitCode != 0) {
-        std::cerr << "WireGuardTunnelManager: Service-specific failure [" << context
-                  << "] reason="
-                  << wireGuardServiceErrorToString(status.dwServiceSpecificExitCode)
-                  << std::endl;
-    }
-}
-
-void WireGuardTunnelManager::logAdapterSnapshot(const std::string& context) {
-    ULONG bufferSize = 15000;
-    PIP_ADAPTER_ADDRESSES addresses = nullptr;
-    ULONG result = ERROR_BUFFER_OVERFLOW;
-
-    while (result == ERROR_BUFFER_OVERFLOW) {
-        free(addresses);
-        addresses = static_cast<IP_ADAPTER_ADDRESSES*>(malloc(bufferSize));
-        if (!addresses) {
-            std::cerr << "WireGuardTunnelManager: Failed to allocate adapter buffer" << std::endl;
-            return;
-        }
-
-        result = GetAdaptersAddresses(
-            AF_UNSPEC,
-            GAA_FLAG_INCLUDE_PREFIX | GAA_FLAG_INCLUDE_GATEWAYS,
-            NULL,
-            addresses,
-            &bufferSize);
-    }
-
-    if (result != NO_ERROR) {
-        std::cerr << "WireGuardTunnelManager: Adapter snapshot [" << context
-                  << "] GetAdaptersAddresses failed: " << result << std::endl;
-        free(addresses);
-        return;
-    }
-
-    std::cout << "WireGuardTunnelManager: Adapter snapshot [" << context << "]" << std::endl;
-    int loggedCount = 0;
-    for (PIP_ADAPTER_ADDRESSES current = addresses; current != nullptr; current = current->Next) {
-        std::wstring description = current->Description ? current->Description : L"";
-        std::wstring friendlyName = current->FriendlyName ? current->FriendlyName : L"";
-        if (!isTrackedAdapter(
-                description,
-                friendlyName,
-                expectedInterfaceName,
-                currentTunnelName,
-                serviceName) &&
-            !containsCaseInsensitive(description, L"Wintun") &&
-            !containsCaseInsensitive(friendlyName, L"Wintun")) {
-            continue;
-        }
-
-        std::ostringstream line;
-        line << "  adapter[" << loggedCount << "]"
-             << " name=" << narrow(friendlyName)
-             << " description=" << narrow(description)
-             << " oper_status=" << operStatusToString(current->OperStatus)
-             << " if_index=" << current->IfIndex;
-
-        if (current->FirstUnicastAddress &&
-            current->FirstUnicastAddress->Address.lpSockaddr &&
-            current->FirstUnicastAddress->Address.lpSockaddr->sa_family == AF_INET) {
-            char ipBuffer[INET_ADDRSTRLEN] = {};
-            sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(
-                current->FirstUnicastAddress->Address.lpSockaddr);
-            InetNtopA(AF_INET, &addr->sin_addr, ipBuffer, sizeof(ipBuffer));
-            line << " ipv4=" << ipBuffer;
-        }
-
-        std::cout << line.str() << std::endl;
-        loggedCount++;
-    }
-
-    if (loggedCount == 0) {
-        std::cout << "  no Amnezia/WireGuard/Wintun adapters detected" << std::endl;
-    }
-
-    free(addresses);
-}
+void WireGuardTunnelManager::logAdapterSnapshot(const std::string& /*context*/) {}
 
 } // namespace amnezia_flutter
+
+
+
+
+
+
+
 
 
 
