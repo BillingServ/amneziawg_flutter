@@ -42,6 +42,8 @@ private:
     
     // WireGuard interface name for stats
     std::wstring wireguardInterfaceName;
+    std::wstring expectedInterfaceName;
+    std::wstring currentTunnelName;
     
     // Speed tracking (for calculating instantaneous speeds)
     uint64_t lastBytesIn = 0;
@@ -53,6 +55,7 @@ public:
     ~WireGuardTunnelManager();
     
     void setEventSink(flutter::EventSink<flutter::EncodableValue>* sink);
+    void setExpectedInterfaceName(const std::wstring& interfaceName);
     bool startTunnel(const std::string& config);
     void stopTunnel();
     std::string getStatus();
@@ -82,3 +85,4 @@ private:
 };
 
 } // namespace amnezia_flutter
+

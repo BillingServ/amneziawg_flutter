@@ -13,6 +13,8 @@
 #include <chrono>
 #include <vector>
 #include <iomanip>
+#include <algorithm>
+#include <cwctype>
 
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
@@ -35,6 +37,61 @@ std::string narrow(const std::wstring& value) {
     return output;
 }
 
+
+
+std::wstring lowerCopy(std::wstring value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](wchar_t ch) {
+        return static_cast<wchar_t>(std::towlower(ch));
+    });
+    return value;
+}
+
+bool containsCaseInsensitive(const std::wstring& haystack, const std::wstring& needle) {
+    if (needle.empty()) {
+        return false;
+    }
+    return lowerCopy(haystack).find(lowerCopy(needle)) != std::wstring::npos;
+}
+
+std::wstring fileStem(const std::wstring& path) {
+    const size_t lastSlash = path.find_last_of(L"\\/");
+    const size_t start = lastSlash == std::wstring::npos ? 0 : lastSlash + 1;
+    size_t lastDot = path.find_last_of(L'.');
+    if (lastDot == std::wstring::npos || lastDot < start) {
+        lastDot = path.size();
+    }
+    return path.substr(start, lastDot - start);
+}
+
+bool isTrackedAdapter(
+    const std::wstring& description,
+    const std::wstring& friendlyName,
+    const std::wstring& expectedInterfaceName,
+    const std::wstring& tunnelName,
+    const std::wstring& serviceName) {
+    const bool looksLikeWireGuardFamily =
+        containsCaseInsensitive(description, L"Amnezia") ||
+        containsCaseInsensitive(friendlyName, L"Amnezia") ||
+        containsCaseInsensitive(description, L"WireGuard") ||
+        containsCaseInsensitive(friendlyName, L"WireGuard");
+    const bool looksLikeWintun =
+        containsCaseInsensitive(description, L"Wintun") ||
+        containsCaseInsensitive(friendlyName, L"Wintun");
+    const bool matchesExpectedInterface =
+        containsCaseInsensitive(description, expectedInterfaceName) ||
+        containsCaseInsensitive(friendlyName, expectedInterfaceName);
+    const bool matchesTunnelName =
+        containsCaseInsensitive(description, tunnelName) ||
+        containsCaseInsensitive(friendlyName, tunnelName);
+    const bool matchesServiceName =
+        containsCaseInsensitive(description, serviceName) ||
+        containsCaseInsensitive(friendlyName, serviceName);
+
+    return looksLikeWireGuardFamily ||
+           matchesExpectedInterface ||
+           ((matchesTunnelName || matchesServiceName) && looksLikeWintun);
+}
+
 std::string trimCopy(std::string value) {
     const auto start = value.find_first_not_of(" \t\r\n");
     if (start == std::string::npos) {
@@ -43,7 +100,6 @@ std::string trimCopy(std::string value) {
     const auto end = value.find_last_not_of(" \t\r\n");
     return value.substr(start, end - start + 1);
 }
-
 std::string redactConfigLine(const std::string& line) {
     const auto separator = line.find('=');
     if (separator == std::string::npos) {
@@ -144,6 +200,11 @@ void WireGuardTunnelManager::setEventSink(flutter::EventSink<flutter::EncodableV
     eventSink = sink;
 }
 
+void WireGuardTunnelManager::setExpectedInterfaceName(const std::wstring& interfaceName) {
+    expectedInterfaceName = interfaceName;
+    std::cout << "WireGuardTunnelManager: Expected interface name set to "
+              << narrow(expectedInterfaceName) << std::endl;
+}
 std::wstring WireGuardTunnelManager::getAppDirectory() {
     wchar_t exePath[MAX_PATH];
     GetModuleFileNameW(NULL, exePath, MAX_PATH);
@@ -172,6 +233,7 @@ bool WireGuardTunnelManager::createConfigFile(const std::string& config) {
         std::wostringstream pathStream;
         pathStream << tempPath << L"awg_flutter_" << timestamp << L".conf";
         currentConfigPath = pathStream.str();
+        currentTunnelName = fileStem(currentConfigPath);
         
         // Write config to file
         std::ofstream configFile(currentConfigPath);
@@ -222,7 +284,11 @@ bool WireGuardTunnelManager::installService() {
     // Build command line: "C:\path\to\app.exe" /service "<tunnel_name>" "C:\path\to\config.conf"
     std::wstring exePath = getAppExecutablePath();
     std::wostringstream cmdStream;
-    cmdStream << L"\"" << exePath << L"\" /service \"" << serviceName << L"\" \"" << currentConfigPath << L"\"";
+    const std::wstring interfaceNameForService =
+        expectedInterfaceName.empty() ? L"awg0" : expectedInterfaceName;
+    cmdStream << L"\"" << exePath << L"\" /service \"" << serviceName
+              << L"\" \"" << currentConfigPath << L"\" \""
+              << interfaceNameForService << L"\"";
     std::wstring cmdLine = cmdStream.str();
     
     std::wcout << L"Service command: " << cmdLine << std::endl;
@@ -365,11 +431,12 @@ bool WireGuardTunnelManager::checkConnectionStatus() {
             std::wstring description(currentAddress->Description);
             std::wstring friendlyName(currentAddress->FriendlyName);
             
-            // Check if this is an AmneziaWG/WireGuard adapter.
-            if (description.find(L"Amnezia") != std::wstring::npos ||
-                friendlyName.find(L"Amnezia") != std::wstring::npos ||
-                description.find(L"WireGuard") != std::wstring::npos ||
-                friendlyName.find(L"WireGuard") != std::wstring::npos) {
+            if (isTrackedAdapter(
+                    description,
+                    friendlyName,
+                    expectedInterfaceName,
+                    currentTunnelName,
+                    serviceName)) {
                 std::cout << "WireGuardTunnelManager: Candidate adapter detected"
                           << " name=" << narrow(friendlyName)
                           << " description=" << narrow(description)
@@ -428,11 +495,12 @@ std::map<std::string, uint64_t> WireGuardTunnelManager::getWireGuardInterfaceSta
             std::wstring description(currentAddress->Description);
             std::wstring friendlyName(currentAddress->FriendlyName);
             
-            // Check if this is an AmneziaWG/WireGuard adapter.
-            if (description.find(L"Amnezia") != std::wstring::npos ||
-                friendlyName.find(L"Amnezia") != std::wstring::npos ||
-                description.find(L"WireGuard") != std::wstring::npos ||
-                friendlyName.find(L"WireGuard") != std::wstring::npos) {
+            if (isTrackedAdapter(
+                    description,
+                    friendlyName,
+                    expectedInterfaceName,
+                    currentTunnelName,
+                    serviceName)) {
                 
                 // Get statistics from MIB_IF_ROW2
                 MIB_IF_ROW2 ifRow;
@@ -798,12 +866,14 @@ void WireGuardTunnelManager::logAdapterSnapshot(const std::string& context) {
     for (PIP_ADAPTER_ADDRESSES current = addresses; current != nullptr; current = current->Next) {
         std::wstring description = current->Description ? current->Description : L"";
         std::wstring friendlyName = current->FriendlyName ? current->FriendlyName : L"";
-        if (description.find(L"Amnezia") == std::wstring::npos &&
-            friendlyName.find(L"Amnezia") == std::wstring::npos &&
-            description.find(L"WireGuard") == std::wstring::npos &&
-            friendlyName.find(L"WireGuard") == std::wstring::npos &&
-            description.find(L"Wintun") == std::wstring::npos &&
-            friendlyName.find(L"Wintun") == std::wstring::npos) {
+        if (!isTrackedAdapter(
+                description,
+                friendlyName,
+                expectedInterfaceName,
+                currentTunnelName,
+                serviceName) &&
+            !containsCaseInsensitive(description, L"Wintun") &&
+            !containsCaseInsensitive(friendlyName, L"Wintun")) {
             continue;
         }
 
@@ -836,3 +906,7 @@ void WireGuardTunnelManager::logAdapterSnapshot(const std::string& context) {
 }
 
 } // namespace amnezia_flutter
+
+
+
+

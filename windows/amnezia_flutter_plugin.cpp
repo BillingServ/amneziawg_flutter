@@ -71,9 +71,17 @@ namespace amnezia_flutter
 
     if (call.method_name() == "initialize")
     {
-      // For the embedded approach, we don't need win32ServiceName
-      // Just acknowledge initialization
-      cout << "AmneziaFlutterPlugin: Initialize called (embedded mode)" << endl;
+      const auto *interfaceName = args != nullptr
+          ? get_if<string>(ValueOrNull(*args, "interfaceName"))
+          : nullptr;
+
+      cout << "AmneziaFlutterPlugin: Initialize called (embedded mode)";
+      if (interfaceName != nullptr && tunnel_manager_ != nullptr) {
+        cout << " interfaceName=" << *interfaceName;
+        tunnel_manager_->setExpectedInterfaceName(
+            std::wstring(interfaceName->begin(), interfaceName->end()));
+      }
+      cout << endl;
       
       if (tunnel_manager_ && events_) {
         tunnel_manager_->setEventSink(events_.get());
@@ -224,3 +232,4 @@ namespace amnezia_flutter
   }
 
 } // namespace amnezia_flutter
+
