@@ -65,6 +65,49 @@ std::string operStatusToString(IF_OPER_STATUS status) {
     }
 }
 
+std::string wireGuardServiceErrorToString(DWORD code) {
+    switch (code) {
+        case 0:
+            return "success";
+        case 1:
+            return "ringlogger_open_failed";
+        case 2:
+            return "load_configuration_failed";
+        case 3:
+            return "create_network_adapter_failed";
+        case 4:
+            return "uapi_listen_failed";
+        case 5:
+            return "dns_lookup_failed";
+        case 6:
+            return "firewall_enable_failed";
+        case 7:
+            return "device_set_config_failed";
+        case 8:
+            return "device_bring_up_failed";
+        case 9:
+            return "bind_sockets_to_default_route_failed";
+        case 10:
+            return "monitor_mtu_changes_failed";
+        case 11:
+            return "set_adapter_network_config_failed";
+        case 12:
+            return "determine_executable_path_failed";
+        case 13:
+            return "track_tunnels_failed";
+        case 14:
+            return "enumerate_sessions_failed";
+        case 15:
+            return "drop_privileges_failed";
+        case 16:
+            return "run_script_failed";
+        case 17:
+            return "internal_win32_error";
+        default:
+            return "unknown_service_error_" + std::to_string(code);
+    }
+}
+
 }  // namespace
 
 WireGuardTunnelManager::WireGuardTunnelManager() {
@@ -627,10 +670,13 @@ void WireGuardTunnelManager::logConfigSummary(const std::string& config) {
 
 void WireGuardTunnelManager::logRuntimeDependencies() {
     const std::wstring appDir = getAppDirectory();
+    const std::wstring amneziaPreferredTunnelPath = appDir + L"\\amneziawg_tunnel.dll";
     const std::wstring amneziaTunnelPath = appDir + L"\\amnezia_tunnel.dll";
     const std::wstring wireGuardTunnelPath = appDir + L"\\wireguard_tunnel.dll";
     const std::wstring fallbackTunnelPath = appDir + L"\\tunnel.dll";
     const std::wstring wintunPath = appDir + L"\\wintun.dll";
+    const std::wstring wireguardDriverPath = appDir + L"\\wireguard.dll";
+    const std::wstring awgPath = appDir + L"\\awg.exe";
 
     auto logFileStatus = [&](const std::wstring& path, const std::string& label) {
         const DWORD attributes = GetFileAttributesW(path.c_str());
@@ -644,10 +690,13 @@ void WireGuardTunnelManager::logRuntimeDependencies() {
     };
 
     std::cout << "WireGuardTunnelManager: App directory -> " << narrow(appDir) << std::endl;
+    logFileStatus(amneziaPreferredTunnelPath, "amneziawg_tunnel.dll");
     logFileStatus(amneziaTunnelPath, "amnezia_tunnel.dll");
     logFileStatus(wireGuardTunnelPath, "wireguard_tunnel.dll");
     logFileStatus(fallbackTunnelPath, "tunnel.dll");
     logFileStatus(wintunPath, "wintun.dll");
+    logFileStatus(wireguardDriverPath, "wireguard.dll");
+    logFileStatus(awgPath, "awg.exe");
 }
 
 void WireGuardTunnelManager::logServiceStatus(const std::string& context) {
@@ -677,6 +726,14 @@ void WireGuardTunnelManager::logServiceStatus(const std::string& context) {
               << " wait_hint=" << status.dwWaitHint
               << " pid=" << status.dwProcessId
               << std::endl;
+
+    if (status.dwWin32ExitCode == ERROR_SERVICE_SPECIFIC_ERROR &&
+        status.dwServiceSpecificExitCode != 0) {
+        std::cerr << "WireGuardTunnelManager: Service-specific failure [" << context
+                  << "] reason="
+                  << wireGuardServiceErrorToString(status.dwServiceSpecificExitCode)
+                  << std::endl;
+    }
 }
 
 void WireGuardTunnelManager::logAdapterSnapshot(const std::string& context) {
