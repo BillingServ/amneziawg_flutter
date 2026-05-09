@@ -8,7 +8,6 @@
 #include <flutter/event_stream_handler.h>
 #include <flutter/event_stream_handler_functions.h>
 #include <flutter/encodable_value.h>
-#include <libbase64.h>
 #include <windows.h>
 
 #include <memory>
@@ -214,7 +213,6 @@ namespace amnezia_flutter
   }
 
 } // namespace amnezia_flutter
-
 
 
 

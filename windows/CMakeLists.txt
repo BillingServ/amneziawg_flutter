@@ -50,8 +50,6 @@ target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 
 # Source include directories and library dependencies. Add any plugin-specific
 # dependencies here.
-add_subdirectory(external)
-target_link_libraries(${PLUGIN_NAME} PRIVATE base64)
 
 add_compile_definitions(WIN32_LEAN_AND_MEAN) # for Wireguard winsock/windows conflict
 
