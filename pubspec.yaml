@@ -1,12 +1,12 @@
 name: amnezia_flutter
 description: Amnezia Flutter SDK
-version: 0.1.4+1
+version: 0.1.5
 homepage: https://flutterflux.com
 repository: https://github.com/Caqil/amnezia_flutter
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-  flutter: '>=3.13.7'
+  sdk: ^3.12.0
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
