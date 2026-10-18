@@ -1,7 +1,7 @@
 abstract class AmneziaFlutterPlatformInterface {
   Stream<VpnStage> get vpnStageSnapshot;
 
-  Future<void> initialize({required String interfaceName});
+  Future<void> initialize({required String interfaceName, String? providerBundleIdentifier});
 
   Future<void> startVpn({
     required String serverAddress,

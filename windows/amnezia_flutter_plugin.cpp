@@ -59,7 +59,9 @@ namespace amnezia_flutter
     tunnel_manager_ = make_unique<WireGuardTunnelManager>();
   }
 
-  AmneziaFlutterPlugin::~AmneziaFlutterPlugin() {}
+  AmneziaFlutterPlugin::~AmneziaFlutterPlugin() {
+    if (tunnel_manager_) tunnel_manager_->setEventSink(nullptr);
+  }
 
   void AmneziaFlutterPlugin::HandleMethodCall(const MethodCall<EncodableValue> &call,
                                                 unique_ptr<MethodResult<EncodableValue>> result)
@@ -124,8 +126,11 @@ namespace amnezia_flutter
       
       try
       {
-        tunnel_manager_->stopTunnel();
-        result->Success();
+        if (tunnel_manager_->stopTunnel()) {
+          result->Success();
+        } else {
+          result->Error("stop_unverified", "SCM has not confirmed the tunnel stopped");
+        }
       }
       catch (exception &e)
       {
@@ -143,7 +148,11 @@ namespace amnezia_flutter
 
       tunnel_manager_->processPendingStatusUpdates();
       string status = tunnel_manager_->getStatus();
-      result->Success(status);
+      if (status == "unknown") {
+        result->Error("stop_unverified", "SCM has not confirmed the tunnel stopped");
+      } else {
+        result->Success(status);
+      }
       return;
     }
     else if (call.method_name() == "refresh")

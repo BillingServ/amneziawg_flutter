@@ -34,8 +34,11 @@ class AmneziaFlutter extends AmneziaFlutterPlatformInterface {
   Stream<VpnStage> get vpnStageSnapshot => _instance.vpnStageSnapshot;
 
   @override
-  Future<void> initialize({required String interfaceName}) {
-    return _instance.initialize(interfaceName: interfaceName);
+  Future<void> initialize({required String interfaceName, String? providerBundleIdentifier}) {
+    return _instance.initialize(
+      interfaceName: interfaceName,
+      providerBundleIdentifier: providerBundleIdentifier,
+    );
   }
 
   @override

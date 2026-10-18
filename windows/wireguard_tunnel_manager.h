@@ -57,7 +57,7 @@ public:
     void setEventSink(flutter::EventSink<flutter::EncodableValue>* sink);
     void setExpectedInterfaceName(const std::wstring& interfaceName);
     bool startTunnel(const std::string& config);
-    void stopTunnel();
+    bool stopTunnel();
     std::string getStatus();
     std::map<std::string, uint64_t> getStatistics();
     
@@ -75,6 +75,7 @@ private:
     bool createConfigFile(const std::string& config);
     void cleanupTempFiles();
     bool checkConnectionStatus();
+    bool isServiceRunning();
     void logConfigSummary(const std::string& config);
     void logRuntimeDependencies();
     void logServiceStatus(const std::string& context);

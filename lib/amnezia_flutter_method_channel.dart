@@ -26,9 +26,10 @@ class AmneziaFlutterMethodChannel extends AmneziaFlutterPlatformInterface {
         );
 
   @override
-  Future<void> initialize({required String interfaceName}) {
+  Future<void> initialize({required String interfaceName, String? providerBundleIdentifier}) {
     return _methodChannel.invokeMethod("initialize", {
       "localizedDescription": interfaceName,
+      "providerBundleIdentifier": providerBundleIdentifier,
       "win32ServiceName": interfaceName,
     });
   }

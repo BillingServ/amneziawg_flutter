@@ -36,7 +36,12 @@ public class AmneziaFlutterPlugin: NSObject, FlutterPlugin {
         wireguardMethodChannel.setMethodCallHandler({(call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
             switch call.method {
             case "stage":
-               result(AmneziaFlutterPlugin.utils.currentStatus())
+               if let status = AmneziaFlutterPlugin.utils.currentStatus() {
+                   result(status)
+               } else {
+                   result(FlutterError(code: "VPN_IDENTITY_UNKNOWN",
+                       message: "Initialize with providerBundleIdentifier before querying state", details: nil))
+               }
                 break;
             case "initialize":
               let localizedDescription: String? =
@@ -48,6 +53,10 @@ public class AmneziaFlutterPlugin: NSObject, FlutterPlugin {
                   return
               }
               AmneziaFlutterPlugin.utils.localizedDescription = localizedDescription
+              if let identifier = (call.arguments as? [String: Any])?["providerBundleIdentifier"] as? String,
+                 !identifier.isEmpty {
+                  AmneziaFlutterPlugin.utils.providerBundleIdentifier = identifier
+              }
               AmneziaFlutterPlugin.utils.loadProviderManager { (err: Error?) in
                   if err == nil {
                       result(AmneziaFlutterPlugin.utils.currentStatus())
@@ -99,14 +108,15 @@ public class AmneziaFlutterPlugin: NSObject, FlutterPlugin {
       }
 
       vpnConnectionObserver = NotificationCenter.default.addObserver(
-        forName: NSNotification.Name.NEVPNStatusDidChange, object: nil, queue: nil
+        forName: NSNotification.Name.NEVPNStatusDidChange, object: nil, queue: .main
       ) { [weak self] notification in
         guard let self = self, let connection = self.vpnConnection else {
           // Check if self or connection is nil and return early if that's the case
           return
         }
 
-        let nevpnconn = notification.object as! NEVPNConnection
+        guard let nevpnconn = notification.object as? NEVPNConnection,
+              AmneziaFlutterPlugin.utils.ownsConnection(nevpnconn) else { return }
         let status = nevpnconn.status
 
         // Send the event using the eventSink closure
@@ -116,10 +126,11 @@ public class AmneziaFlutterPlugin: NSObject, FlutterPlugin {
       // Assign the eventSink closure to the vpnConnection variable
       self.vpnConnection = events
 
-      NETunnelProviderManager.loadAllFromPreferences { managers, error in
-        events(
-            AmneziaFlutterPlugin.utils.onVpnStatusChangedString(
-            notification: managers?.first?.connection.status))
+      if let status = AmneziaFlutterPlugin.utils.currentStatus() {
+          events(status)
+      } else {
+          events(FlutterError(code: "VPN_IDENTITY_UNKNOWN",
+              message: "VPN provider identity is not initialized", details: nil))
       }
 
       return nil
@@ -141,17 +152,41 @@ public class AmneziaFlutterPlugin: NSObject, FlutterPlugin {
 
 @available(iOS 15.0, *)
 class VPNUtils {
+  private var operationGeneration: UInt64 = 0
+  private var pendingStart: ((Bool) -> Void)?
   var providerManager: NETunnelProviderManager!
-  var providerBundleIdentifier: String?
+  var providerBundleIdentifier: String? {
+    didSet {
+      guard oldValue != providerBundleIdentifier else { return }
+      operationGeneration &+= 1
+      providerManager = nil
+      let cancelledStart = pendingStart
+      pendingStart = nil
+      cancelledStart?(false)
+    }
+  }
   var localizedDescription: String?
   var groupIdentifier: String?
   var serverAddress: String?
   var stage: FlutterEventSink!
    
+  func ownsManager(_ manager: NETunnelProviderManager) -> Bool {
+    guard let identifier = providerBundleIdentifier, !identifier.isEmpty,
+          let configuration = manager.protocolConfiguration as? NETunnelProviderProtocol else { return false }
+    return configuration.providerBundleIdentifier == identifier
+  }
+
+  func ownsConnection(_ connection: NEVPNConnection) -> Bool {
+    guard let manager = providerManager, ownsManager(manager) else { return false }
+    return connection === manager.connection
+  }
+
   func loadProviderManager(completion: @escaping (_ error: Error?) -> Void) {
+    let generation = operationGeneration
     NETunnelProviderManager.loadAllFromPreferences { (managers, error) in
+      guard self.operationGeneration == generation else { completion(nil); return }
       if error == nil {
-        self.providerManager = managers?.first ?? NETunnelProviderManager()
+        self.providerManager = managers?.first(where: self.ownsManager)
         completion(nil)
       } else {
         completion(error)
@@ -208,8 +243,9 @@ class VPNUtils {
   }
 
   func currentStatus() -> String? {
-    if self.providerManager != nil {
-      return onVpnStatusChangedString(notification: self.providerManager.connection.status)
+    guard let identifier = providerBundleIdentifier, !identifier.isEmpty else { return nil }
+    if let manager = self.providerManager, ownsManager(manager) {
+      return onVpnStatusChangedString(notification: manager.connection.status)
     } else {
       return "disconnected"
     }
@@ -222,18 +258,34 @@ class VPNUtils {
         providerBundleIdentifier: String?,
         completion: @escaping (Bool) -> Void
       ) {
+          guard let providerBundleIdentifier = providerBundleIdentifier,
+                !providerBundleIdentifier.isEmpty else { completion(false); return }
+          self.providerBundleIdentifier = providerBundleIdentifier
+          operationGeneration &+= 1
+          let generation = operationGeneration
+          let previousStart = pendingStart
+          pendingStart = completion
+          previousStart?(false)
+          let complete: (Bool) -> Void = { [weak self] success in
+              guard let self = self, self.operationGeneration == generation else { return }
+              let callback = self.pendingStart
+              self.pendingStart = nil
+              callback?(success)
+          }
           NETunnelProviderManager.loadAllFromPreferences{ tunnelManagersInSettings, error in
+              guard self.operationGeneration == generation else { return }
               if let error = error {
                   NSLog("Error (loadAllFromPreferences): \(error)")
-                  completion(false)
+                  complete(false)
                   return
               }
-              let preExistingTunnelManager = tunnelManagersInSettings?.first
+              let preExistingTunnelManager = tunnelManagersInSettings?.first(where: self.ownsManager)
               let tunnelManager = preExistingTunnelManager ?? NETunnelProviderManager()
+              self.providerManager = tunnelManager
               
               let protocolConfiguration = NETunnelProviderProtocol()
               
-              protocolConfiguration.providerBundleIdentifier = providerBundleIdentifier!
+              protocolConfiguration.providerBundleIdentifier = providerBundleIdentifier
               protocolConfiguration.serverAddress = serverAddress
               protocolConfiguration.providerConfiguration = [
                   "WgQuickConfig": wgQuickConfig!,
@@ -244,27 +296,29 @@ class VPNUtils {
               tunnelManager.isEnabled = true
               
               tunnelManager.saveToPreferences { error in
+                  guard self.operationGeneration == generation else { return }
                   if let error = error {
                       NSLog("Error (saveToPreferences): \(error)")
-                      completion(false)
+                      complete(false)
                   } else {
                       tunnelManager.loadFromPreferences { error in
+                          guard self.operationGeneration == generation else { return }
                           if let error = error {
                               NSLog("Error (loadFromPreferences): \(error)")
-                              completion(false)
+                              complete(false)
                           } else {
                               NSLog("Starting the tunnel")
                               if let session = tunnelManager.connection as? NETunnelProviderSession {
                                   do {
                                       try session.startTunnel(options: nil)
-                                      completion(true)
+                                      complete(true)
                                   } catch {
                                       NSLog("Error (startTunnel): \(error)")
-                                      completion(false)
+                                      complete(false)
                                   }
                               } else {
                                   NSLog("tunnelManager.connection is invalid")
-                                  completion(false)
+                                  complete(false)
                               }
                           }
                       }
@@ -275,14 +329,23 @@ class VPNUtils {
       }
   
   func stopVPN(completion: @escaping (Bool?) -> Void) {
+      operationGeneration &+= 1
+      let generation = operationGeneration
+      let cancelledStart = pendingStart
+      pendingStart = nil
+      cancelledStart?(false)
       NETunnelProviderManager.loadAllFromPreferences { tunnelManagersInSettings, error in
+          guard self.operationGeneration == generation else {
+              completion(false)
+              return
+          }
           if let error = error {
               NSLog("Error (loadAllFromPreferences): \(error)")
               completion(false)
               return
           }
           
-          if let tunnelManager = tunnelManagersInSettings?.first {
+          if let tunnelManager = tunnelManagersInSettings?.first(where: self.ownsManager) {
               guard let session = tunnelManager.connection as? NETunnelProviderSession else {
                   NSLog("tunnelManager.connection is invalid")
                   completion(false)

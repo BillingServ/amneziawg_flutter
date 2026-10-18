@@ -46,13 +46,6 @@ std::wstring lowerCopy(std::wstring value) {
     return value;
 }
 
-bool containsCaseInsensitive(const std::wstring& haystack, const std::wstring& needle) {
-    if (needle.empty()) {
-        return false;
-    }
-    return lowerCopy(haystack).find(lowerCopy(needle)) != std::wstring::npos;
-}
-
 std::wstring fileStem(const std::wstring& path) {
     const size_t lastSlash = path.find_last_of(L"\\/");
     const size_t start = lastSlash == std::wstring::npos ? 0 : lastSlash + 1;
@@ -63,33 +56,8 @@ std::wstring fileStem(const std::wstring& path) {
     return path.substr(start, lastDot - start);
 }
 
-bool isTrackedAdapter(
-    const std::wstring& description,
-    const std::wstring& friendlyName,
-    const std::wstring& expectedInterfaceName,
-    const std::wstring& tunnelName,
-    const std::wstring& serviceName) {
-    const bool looksLikeWireGuardFamily =
-        containsCaseInsensitive(description, L"Amnezia") ||
-        containsCaseInsensitive(friendlyName, L"Amnezia") ||
-        containsCaseInsensitive(description, L"WireGuard") ||
-        containsCaseInsensitive(friendlyName, L"WireGuard");
-    const bool looksLikeWintun =
-        containsCaseInsensitive(description, L"Wintun") ||
-        containsCaseInsensitive(friendlyName, L"Wintun");
-    const bool matchesExpectedInterface =
-        containsCaseInsensitive(description, expectedInterfaceName) ||
-        containsCaseInsensitive(friendlyName, expectedInterfaceName);
-    const bool matchesTunnelName =
-        containsCaseInsensitive(description, tunnelName) ||
-        containsCaseInsensitive(friendlyName, tunnelName);
-    const bool matchesServiceName =
-        containsCaseInsensitive(description, serviceName) ||
-        containsCaseInsensitive(friendlyName, serviceName);
-
-    return looksLikeWireGuardFamily ||
-           matchesExpectedInterface ||
-           ((matchesTunnelName || matchesServiceName) && looksLikeWintun);
+bool isTrackedAdapter(const std::wstring& friendlyName, const std::wstring& expectedName) {
+    return !expectedName.empty() && lowerCopy(friendlyName) == lowerCopy(expectedName);
 }
 
 std::string trimCopy(std::string value) {
@@ -369,7 +337,14 @@ bool WireGuardTunnelManager::deleteService() {
     return true;
 }
 
+bool WireGuardTunnelManager::isServiceRunning() {
+    SERVICE_STATUS status = {};
+    return serviceHandle != nullptr && QueryServiceStatus(serviceHandle, &status) &&
+           status.dwCurrentState == SERVICE_RUNNING;
+}
+
 bool WireGuardTunnelManager::checkConnectionStatus() {
+    if (!isServiceRunning()) return false;
     // Check if WireGuard adapter exists and is up
     ULONG bufferSize = 15000;
     PIP_ADAPTER_ADDRESSES addresses = nullptr;
@@ -397,15 +372,11 @@ bool WireGuardTunnelManager::checkConnectionStatus() {
         PIP_ADAPTER_ADDRESSES currentAddress = addresses;
         
         while (currentAddress) {
-            std::wstring description(currentAddress->Description);
-            std::wstring friendlyName(currentAddress->FriendlyName);
+            std::wstring friendlyName = currentAddress->FriendlyName != nullptr
+                ? currentAddress->FriendlyName : L"";
             
-            if (isTrackedAdapter(
-                    description,
-                    friendlyName,
-                    expectedInterfaceName,
-                    currentTunnelName,
-                    serviceName)) {                
+            if (isTrackedAdapter(friendlyName,
+                    expectedInterfaceName.empty() ? L"awg0" : expectedInterfaceName)) {
                 // Store the interface name for statistics
                 wireguardInterfaceName = friendlyName;
                 
@@ -431,6 +402,8 @@ std::map<std::string, uint64_t> WireGuardTunnelManager::getWireGuardInterfaceSta
     stats["speed_in_bps"] = 0;
     stats["speed_out_bps"] = 0;
     
+    if (!isServiceRunning()) return stats;
+
     ULONG bufferSize = 15000;
     PIP_ADAPTER_ADDRESSES addresses = nullptr;
     ULONG result = ERROR_BUFFER_OVERFLOW;
@@ -455,15 +428,11 @@ std::map<std::string, uint64_t> WireGuardTunnelManager::getWireGuardInterfaceSta
         PIP_ADAPTER_ADDRESSES currentAddress = addresses;
         
         while (currentAddress) {
-            std::wstring description(currentAddress->Description);
-            std::wstring friendlyName(currentAddress->FriendlyName);
+            std::wstring friendlyName = currentAddress->FriendlyName != nullptr
+                ? currentAddress->FriendlyName : L"";
             
-            if (isTrackedAdapter(
-                    description,
-                    friendlyName,
-                    expectedInterfaceName,
-                    currentTunnelName,
-                    serviceName)) {
+            if (isTrackedAdapter(friendlyName,
+                    expectedInterfaceName.empty() ? L"awg0" : expectedInterfaceName)) {
                 
                 // Get statistics from MIB_IF_ROW2
                 MIB_IF_ROW2 ifRow;
@@ -550,6 +519,7 @@ void WireGuardTunnelManager::monitorConnection() {
         } else if (isConnecting) {
             connectionCheckAttempts++;
             if (connectionCheckAttempts >= maxConnectionCheckAttempts) {
+                isConnecting = false;
                 updateStatusThreadSafe("error");
                 break;
             }
@@ -568,6 +538,14 @@ void WireGuardTunnelManager::monitorConnection() {
 
 
 bool WireGuardTunnelManager::startTunnel(const std::string& config) {
+    // A monitor remains joinable after it exits on adapter loss. Clean up that
+    // session before replacing its thread, without holding statusMutex: the
+    // old monitor may still need the mutex to queue its final status.
+    if (isConnected || isConnecting) return false;
+    if ((statusMonitorThread.joinable() || serviceHandle != nullptr) && !stopTunnel()) {
+        return false;
+    }
+
     std::lock_guard<std::mutex> lock(statusMutex);
     
     if (isConnected || isConnecting) {
@@ -608,7 +586,7 @@ bool WireGuardTunnelManager::startTunnel(const std::string& config) {
     return true;
 }
 
-void WireGuardTunnelManager::stopTunnel() {    
+bool WireGuardTunnelManager::stopTunnel() {
     // Signal monitor to stop
     shouldMonitor = false;
     
@@ -617,29 +595,49 @@ void WireGuardTunnelManager::stopTunnel() {
         statusMonitorThread.join();
     }
     
-    // Stop and delete the service
-    stopService();
+    // Retain service/config ownership until SCM confirms SERVICE_STOPPED.
+    // A stop timeout must not become a cached disconnected state.
+    if (!stopService()) {
+        std::lock_guard<std::mutex> lock(statusMutex);
+        while (!pendingStatusUpdates.empty()) pendingStatusUpdates.pop();
+        updateStatus("unknown");
+        return false;
+    }
     deleteService();
     
     isConnected = false;
     isConnecting = false;
     
     std::lock_guard<std::mutex> lock(statusMutex);
+    while (!pendingStatusUpdates.empty()) pendingStatusUpdates.pop();
     updateStatus("disconnected");
     
     // Cleanup
     cleanupTempFiles();
+    return true;
 }
 
 std::string WireGuardTunnelManager::getStatus() {
     std::lock_guard<std::mutex> lock(statusMutex);
+    if (serviceHandle != nullptr) {
+        SERVICE_STATUS status = {};
+        if (!QueryServiceStatus(serviceHandle, &status)) return "unknown";
+        if (status.dwCurrentState == SERVICE_STOPPED) return "disconnected";
+        if (status.dwCurrentState == SERVICE_START_PENDING && isConnecting) return "connecting";
+        if (status.dwCurrentState != SERVICE_RUNNING ||
+            currentStatus == "disconnected" || currentStatus == "error") return "unknown";
+    }
     return currentStatus;
 }
 
 void WireGuardTunnelManager::updateStatus(const std::string& status) {
     currentStatus = status;
     if (eventSink) {
-        eventSink->Success(flutter::EncodableValue(status));
+        if (status == "unknown") {
+            eventSink->Error("stop_unverified", "SCM has not confirmed the tunnel stopped");
+        } else {
+            eventSink->Success(flutter::EncodableValue(status));
+        }
     }
 }
 
