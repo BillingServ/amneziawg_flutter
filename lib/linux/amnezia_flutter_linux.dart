@@ -75,6 +75,8 @@ class AmneziaFlutterLinux extends AmneziaFlutterPlatformInterface {
     required String serverAddress,
     required String wgQuickConfig,
     required String providerBundleIdentifier,
+    bool onDemand = false,
+    bool includeAllNetworks = false,
   }) {
     if (_stopInFlight != null) {
       return Future.error(StateError('VPN stop is in progress'));

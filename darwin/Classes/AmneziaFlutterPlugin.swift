@@ -75,7 +75,9 @@ public class AmneziaFlutterPlugin: NSObject, FlutterPlugin {
                  let serverAddress: String? = (call.arguments as? [String: Any])?["serverAddress"] as? String
                  let wgQuickConfig: String? = (call.arguments as? [String: Any])?["wgQuickConfig"] as? String
                  let providerBundleIdentifier: String? = (call.arguments as? [String: Any])?["providerBundleIdentifier"] as? String
-              self.connect(serverAddress: serverAddress!, wgQuickConfig: wgQuickConfig!,providerBundleIdentifier: providerBundleIdentifier!, result: result)
+                 let onDemand = (call.arguments as? [String: Any])?["onDemand"] as? Bool ?? false
+                 let includeAllNetworks = (call.arguments as? [String: Any])?["includeAllNetworks"] as? Bool ?? false
+              self.connect(serverAddress: serverAddress!, wgQuickConfig: wgQuickConfig!,providerBundleIdentifier: providerBundleIdentifier!, onDemand: onDemand, includeAllNetworks: includeAllNetworks, result: result)
                 break;
             case "dispose":
                 self.initialized = false
@@ -84,8 +86,8 @@ public class AmneziaFlutterPlugin: NSObject, FlutterPlugin {
             }
         })
     }
-    private func connect(serverAddress: String, wgQuickConfig: String, providerBundleIdentifier:String, result: @escaping FlutterResult) {
-        AmneziaFlutterPlugin.utils.configureVPN(serverAddress: serverAddress, wgQuickConfig: wgQuickConfig, providerBundleIdentifier: providerBundleIdentifier) { success in
+    private func connect(serverAddress: String, wgQuickConfig: String, providerBundleIdentifier:String, onDemand: Bool, includeAllNetworks: Bool, result: @escaping FlutterResult) {
+        AmneziaFlutterPlugin.utils.configureVPN(serverAddress: serverAddress, wgQuickConfig: wgQuickConfig, providerBundleIdentifier: providerBundleIdentifier, onDemand: onDemand, includeAllNetworks: includeAllNetworks) { success in
                 result(success)
             }
         }
@@ -256,6 +258,8 @@ class VPNUtils {
         serverAddress: String?,
         wgQuickConfig: String?,
         providerBundleIdentifier: String?,
+        onDemand: Bool = false,
+        includeAllNetworks: Bool = false,
         completion: @escaping (Bool) -> Void
       ) {
           guard let providerBundleIdentifier = providerBundleIdentifier,
@@ -292,8 +296,18 @@ class VPNUtils {
                   "wgQuickConfig": wgQuickConfig!
               ]
               
+              // All traffic but the local network's goes through the tunnel, and
+              // is blocked whenever the tunnel isn't passing it.
+              protocolConfiguration.includeAllNetworks = includeAllNetworks
+              protocolConfiguration.excludeLocalNetworks = includeAllNetworks
+
               tunnelManager.protocolConfiguration = protocolConfiguration
               tunnelManager.isEnabled = true
+              // Keeps the tunnel up: the system restarts it whenever it drops.
+              let connectRule = NEOnDemandRuleConnect()
+              connectRule.interfaceTypeMatch = .any
+              tunnelManager.onDemandRules = onDemand ? [connectRule] : nil
+              tunnelManager.isOnDemandEnabled = onDemand
               
               tunnelManager.saveToPreferences { error in
                   guard self.operationGeneration == generation else { return }
@@ -351,13 +365,27 @@ class VPNUtils {
                   completion(false)
                   return
               }
-              switch session.status {
-              case .connected, .connecting, .reasserting:
-                  NSLog("Stopping the tunnel")
-                  session.stopTunnel()
-                  completion(true)
-              default:
-                  completion(false)
+              let stop = {
+                  switch session.status {
+                  case .connected, .connecting, .reasserting:
+                      NSLog("Stopping the tunnel")
+                      session.stopTunnel()
+                      completion(true)
+                  default:
+                      completion(false)
+                  }
+              }
+              // A deliberate stop: with on-demand still on, the system would
+              // start the tunnel again straight away, and with all networks
+              // included it would keep blocking traffic while it is down.
+              let configuration = tunnelManager.protocolConfiguration as? NETunnelProviderProtocol
+              if tunnelManager.isOnDemandEnabled || configuration?.includeAllNetworks == true {
+                  tunnelManager.isOnDemandEnabled = false
+                  configuration?.includeAllNetworks = false
+                  configuration?.excludeLocalNetworks = false
+                  tunnelManager.saveToPreferences { _ in stop() }
+              } else {
+                  stop()
               }
           } else {
               completion(false)

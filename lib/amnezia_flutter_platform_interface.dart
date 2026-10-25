@@ -3,10 +3,16 @@ abstract class AmneziaFlutterPlatformInterface {
 
   Future<void> initialize({required String interfaceName, String? providerBundleIdentifier});
 
+  /// [onDemand] and [includeAllNetworks] apply on Apple platforms only: the
+  /// system keeps the tunnel up and restarts it whenever it drops, and sends
+  /// all traffic but the local network's through the tunnel, blocking it
+  /// whenever the tunnel isn't passing traffic.
   Future<void> startVpn({
     required String serverAddress,
     required String wgQuickConfig,
     required String providerBundleIdentifier,
+    bool onDemand = false,
+    bool includeAllNetworks = false,
   });
 
   Future<void> stopVpn();
